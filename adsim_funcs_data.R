@@ -1,3 +1,8 @@
+library(survey)
+
+
+`%notin%` <- Negate(`%in%`)
+
 
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
   
@@ -23,9 +28,13 @@ TimeSinceBaseline <- function(data, timecol) {
     subj <- subjlist[[i]]
     min.time <- min(subj[[timecol]])
     subj$new_time <- subj[[timecol]] - min.time
-    subj <- subset(subj, new_time <= 24)
     return.list[[i]] <- subj
   }
   return.list <- do.call(rbind, return.list)
   return(return.list)
 }
+
+
+
+
+
