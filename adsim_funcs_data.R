@@ -158,7 +158,7 @@ PlotObsData <- function(data, formula.fixed, ylab) {
 }
 
 
-SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, breaks) {
+SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, breaks, yaxislab_dpm) {
   all.rids <- levels(sim.data[["RID"]])
   nrids <- nlevels(sim.data[["RID"]])
   n.sample <- round(nrids/2)
@@ -171,25 +171,41 @@ SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, b
   sim.data["treat"][base.rows,] <- 0
   sim.data$treat <- factor(sim.data$treat)
   sim.model <- lmer(as.formula(formula), data = sim.data)
-  sim.model.large <- sim.model
-  fixef(sim.model.large)["treat1"] <- 0
-  treat.ef <- fixef(sim.model.large)["new_time"] * efficacy
-  treat.ef <- treat.ef * -1
-  fixef(sim.model.large)["treat1:new_time"] <- treat.ef
-  sim_ext_class     <- extend(sim.model.large, along="RID", n=max(breaks))
+  #sim.model.large <- sim.model
+  #fixef(sim.model.large)["treat1"] <- 0
+  #treat.ef <- fixef(sim.model.large)["new_time"] * efficacy
+  #treat.ef <- treat.ef * -1
+  #fixef(sim.model.large)["treat1:new_time"] <- treat.ef
+  fixed <- fixef(sim.model) 
+  fixed["treat1"] <- 0
+  fixed["treat1:new_time"] <-  (- (fixed["new_time"] /2))
+  rand  <-  as.numeric(VarCorr(sim.model))
+  sig   <- summary(sim.model)$sigma
+  constr.lme <-  makeLmer(as.formula(formula), fixef = fixed, VarCorr = rand, sigma = sig, data = sim.data)
+  #build contrast progression plot
+  treat0 <- sim.data[base.rows, ]
+  treat1 <- treat0
+  treat1$treat <- 1
+  plot.data <- rbind(treat0, treat1)
+  plot.data$prediction <- predict(constr.lme, plot.data)
+  plot.disease.contr <- ggplot(plot.data, aes(x=new_time, y=prediction, colour=treat)) + geom_smooth(method = "lm")
+  plot.disease.contr <- plot.disease.contr + xlab("Time (Weeks)") + ylab(yaxislab_dpm) + labs(colour="Treatment")
+  sim_ext_class     <- extend(constr.lme, along="RID", n=max(breaks))
   p_curve_treat_sim <- powerCurve(sim_ext_class, test=fcompare(as.formula(fcompare_str)), along="RID", breaks=breaks)
   summ_sim<- summary(p_curve_treat_sim)
-  summ_sim$mean <- summ_sim$mean*100
+  summ_sim$mean  <- summ_sim$mean*100
   summ_sim$lower <- summ_sim$lower*100
   summ_sim$upper <- summ_sim$upper*100
   gplot.sim <- ggplot(data = summ_sim, aes(x=nlevels, y=mean)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=breaks)
   gplot.sim <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)")
-  return.list <- list("model" = sim.model.large,
+  return.list <- list("model" = constr.lme,
                       "power_curve_output" = p_curve_treat_sim,
                       "summary_stats" = summ_sim,
-                      "power_curve_plot" = gplot.sim)
+                      "power_curve_plot" = gplot.sim,
+                      "disease_progression_plot" = plot.disease.contr)
   return(return.list)
 }
+
 
 
 CombineSimPlots <- function(nonenrich, enrich, limits) {
@@ -200,31 +216,8 @@ CombineSimPlots <- function(nonenrich, enrich, limits) {
   fullsumstats <- rbind(sumstats_enr, sumstats_non)
   gplot.sim <- ggplot(data = fullsumstats, aes(x=nlevels, y=mean, colour=Group)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
   gplot.sim <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)")
-  return(list("plot"=gplot.sim, "fullstats"=fullsumstats))
+  return(list("plot" = gplot.sim, "fullstats" = fullsumstats))
 } 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

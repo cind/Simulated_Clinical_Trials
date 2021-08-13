@@ -43,6 +43,7 @@ library(nlme)
 library(simr)
 #library(MargCond)
 library(stringr)
+simrOptions(nsim=100)
 
 test.adas       <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
 adni_imaging    <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/unharmonized_freesurfer_imaging.csv")
@@ -165,6 +166,34 @@ adas_desc_time$new_time <- factor(adas_desc_time$new_time)
 desc.table.time <- table1(adas_desc_time, splitby = ~ new_time)$Table1
 desc.table.time <- desc.table.time[c(1:3, 9:12), ]
 
+
+## Neuropath outcome data
+neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "M", "APOE4", "PTGENDER", "AGE", "TOTAL11", 
+                                         "MMSE", "CDRSB", "PTEDUCAT", "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                         "NPLBOD", "NPAMY")]
+
+
+neuropath.outcome.rows <- which(complete.cases(neuropath.outcome[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                                         "NPLBOD", "NPAMY")]))
+neuropath.outcome <- neuropath.outcome[neuropath.outcome.rows,]
+neuropath.outcome$TAU_pos_path <- neuropath.outcome$Amy_pos_path <- neuropath.outcome$TDP_pos_path <- neuropath.outcome$Lewy_pos_path <- neuropath.outcome$CAA_path <- rep(NA, nrow(neuropath.outcome))
+neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK >= 3 & neuropath.outcome$NPBRAAK <= 7 ), ] <- 1
+neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK < 3 | neuropath.outcome$NPBRAAK > 7 ), ] <- 0
+neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 2 | neuropath.outcome$NPNEUR ==3 ), ] <- 1
+neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 0 | neuropath.outcome$NPNEUR ==1 ), ] <- 0
+neuropath.outcome["TDP_pos_path"][which(neuropath.outcome$NPTDPA == 1 | neuropath.outcome$NPTDPB == 1 | neuropath.outcome$NPTDPC == 1 | neuropath.outcome$NPTDPD == 1 | neuropath.outcome$NPTDPE == 1), ] <- 1
+neuropath.outcome["TDP_pos_path"][is.na(neuropath.outcome$TDP_pos_path),] <- 0
+neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD ==0), ] <- 0
+neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD !=0), ] <- 1
+neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY >=2 ), ] <- 1
+neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY < 2), ] <- 0
+drops.neuro <- which(is.na(neuropath.outcome$PTGENDER))
+neuropath.outcome <- neuropath.outcome[-drops.neuro,]
+neuropath.outcome$RID <- factor(neuropath.outcome$RID)
+neuropath.outcome <- TimeSinceBaseline(data = neuropath.outcome,
+                                       timecol = "M")
+neuropath.outcome <- subset(neuropath.outcome, new_time <= 24)
+
 #### model fitting
 
 
@@ -177,58 +206,37 @@ desc.table.base.mci <- table1(desc.table.base.mci)$Table1
 data.mci1     <- PullLongData(base.mci1, adas.outcome.data)
 
 
-
-data.mci1$new_time <- as.numeric(data.mci1$new_time)
-data.mci1$APOE4 <- factor(data.mci1$APOE4)
-all.rids <- levels(data.mci1[["RID"]])
-treat.rids <- sample(all.rids, 90, prob = rep(.5, length(all.rids)), replace = FALSE)
-base.rids <- subset(all.rids, all.rids %notin% treat.rids)
-data.mci1$treat <- rep(NA, nrow(data.mci1))
-treat.rows <- which(data.mci1$RID %in% treat.rids)
-base.rows <- which(data.mci1$RID %in% base.rids)
-data.mci1["treat"][treat.rows,] <- 1
-data.mci1["treat"][base.rows,] <- 0
-data.mci1$treat <- factor(data.mci1$treat)
-mod2 <- lmer(TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID), data = data.mci1)
-mod2_large <- mod2
-summary(mod2_large)
-fixef(mod2_large)["treat1"] <- 0
-fixef(mod2_large)["treat1:new_time"] <- (0.136017*.5)
-summary(mod2_large)
-mod2_ext_class <- extend(mod2_large, along="RID", n=650)
-p_curve_treat_mod2 <- powerCurve(mod2_ext_class, test=fcompare(TOTAL11~new_time), along="RID", breaks = c(100, 200, 300, 400, 500, 600, 650))
-sim_time           <-  powerSim(mod2_large, fcompare(TOTAL11 ~ new_time), nsim=100)
-
-summary(sim_time)
-
-plot(p_curve_treat_mod2)
-this<- summary(p_curve_treat_mod2)
-this$mean <- this$mean*100
-this$lower <- this$lower*100
-this$upper <- this$upper*100
-mci.enrich.plot.1 <- ggplot(data = this, aes(x=nlevels, y=mean)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=this$nlevels)
-mci.enrich.plot.1 <- mci.enrich.plot.1 + xlab("Sample Size per Arm") + ylab("Statistical Power (%)")
-mci.enrich.plot.1
-all.rids <- levels(adas.outcome.data$RID)
-nrids    <- nlevels(adas.outcome.data$RID)
-keeps.rids  <- sample(all.rids, 300, prob = rep(.5, length(all.rids)))
-unenriched.data<- subset(adas.outcome.data, RID %in% keeps.rids)
+all.rids            <- levels(adas.outcome.data$RID)
+nrids               <- nlevels(adas.outcome.data$RID)
+keeps.rids          <- sample(all.rids, 300, prob = rep(.5, length(all.rids)))
+unenriched.data     <- subset(adas.outcome.data, RID %in% keeps.rids)
 unenriched.data$RID <- factor(unenriched.data$RID)
 
 unenriched.totall1<- SampleSizeSimulation(sim.data = unenriched.data, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
                                           fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100))
 data.mci1.totall11 <- SampleSizeSimulation(sim.data = data.mci1, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
-                                          fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100))
+                                         fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100))
+test.out <-  SampleSizeSimulation(sim.data = data.mci1, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                    fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-COG11")
+
+
+
+
+
+
 mci1.plot.total11 <- CombineSimPlots(nonenrich = unenriched.totall1, enrich = data.mci1.totall11, limits = seq(100, 1000, by=100))
 
 unenriched.cdr <- SampleSizeSimulation(sim.data = unenriched.data, formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                           fcompare_str = "CDRSB~new_time", breaks = seq(100, 800, by=100))
 data.mci1.cdr <- SampleSizeSimulation(sim.data = data.mci1, formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                           fcompare_str = "CDRSB~new_time", breaks = seq(100, 800, by=100))
+
+
+
 mci1.plot.cdr <- CombineSimPlots(nonenrich = unenriched.cdr, enrich = data.mci1.cdr, limits = seq(100, 800, by=100))
 
 firstplot <- mci1.plot.total11$plot
-firstplot <- firstplot + labs(title = "ADAS-COG11") +geom_hline(yintercept = 80, linetype="dashed")
+firstplot <- firstplot + labs(title = "ADAS-COG11") + geom_hline(yintercept = 80, linetype="dashed")
 firstplot
 
 secondplot <- mci1.plot.cdr$plot
@@ -239,10 +247,13 @@ secondplot
 
 
 
-amci1.analyzed <- PlotObsData(data.mci1, formula.fixed = "TOTAL11 ~ new_time", ylab= "ADAS-COG11")
+amci1.analyzed    <- PlotObsData(data.mci1, formula.fixed = "TOTAL11 ~ new_time", ylab= "ADAS-COG11")
 mci1.analyzed
-mci1.analyzed.cdr<- PlotObsData(data.mci1, formula.fixed = "CDRSB ~ new_time", ylab= "CDRSB")
+mci1.analyzed.cdr <- PlotObsData(data.mci1, formula.fixed = "CDRSB ~ new_time", ylab= "CDRSB")
 mci1.analyzed.cdr
+
+
+
 
 
 base.mci2     <- subset(adas_baseline, DX=="MCI" & CDRSB>=.5 & MMSE >= 20 & MMSE <=26 & AGE>=50 & AGE <=65 & AmyPos==1)
