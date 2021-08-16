@@ -26,7 +26,7 @@ TimeSinceBaseline <- function(data, timecol) {
   return.list <- list()
   for(i in 1:length(subjlist)) {
     subj <- subjlist[[i]]
-    min.time <- which()
+    min.time <- min(subj[[timecol]])
     subj$new_time <- subj[[timecol]] - min.time
     return.list[[i]] <- subj
   }
@@ -41,8 +41,8 @@ TimeSinceBaselineValidAmy <- function(data, timecol) {
   return.list <- list()
   for(i in 1:length(subjlist)) {
     subj <- subjlist[[i]]
-    if(1 %in% subj$adas_csf_valid | 1 %in% subj$adas_pet_valid) {
-    val.amy   <- which(subj$adas_csf_valid == 1 | subj$adas_pet_valid == 1)
+    if(!all(is.na(subj$AmyPos))) {
+    val.amy   <- which(!is.na(subj$AmyPos))
     min.index <- min(val.amy)
     time.min  <- min(subj[timecol][val.amy,])
     subj$new_time <- subj[[timecol]] - time.min

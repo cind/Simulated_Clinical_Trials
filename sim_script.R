@@ -23,7 +23,6 @@
 #CSFABETA cutpoint <= 254
 #CSFPTAU cutpoint >= 24
 #PETAMY cutpooint >= .78
-install.packages("simr")
 
 vol.ims <- c("ST103CV", "ST44CV", "ST29SV", "ST88SV", "ST10CV", 
              "ST24CV", "ST32CV", "ST40CV", 
@@ -62,15 +61,28 @@ adni_imaging    <- adni_imaging[,c("RID", "VISCODE2", vol.ims)]
 csf.upenn9      <- csf.upenn9[,c("RID", "VISCODE2", "EXAMDATE",  "ABETA", "TAU", "PTAU", "COMMENT")]
 csf.upenn10      <- csf.upenn10[,c("RID", "VISCODE2", "DRAWDATE",  "ABETA42", "TAU", "PTAU", "NOTE")]
 csf.upenn12      <- csf.upenn12[,c("RID", "VISCODE2", "EXAMDATE",  "ABETA", "TAU", "PTAU", "NOTE")]
+csf.upenn9$ABETA <-           as.numeric(as.character(csf.upenn9$ABETA))
+csf.upenn9$PTAU <-           as.numeric(as.character(csf.upenn9$PTAU))
+csf.upenn10$ABETA42 <-           as.numeric(as.character(csf.upenn10$ABETA42))
+csf.upenn10$PTAU <-           as.numeric(as.character(csf.upenn10$PTAU))
+csf.upenn12$ABETA <-           as.numeric(as.character(csf.upenn12$ABETA))
+csf.upenn12$PTAU <-           as.numeric(as.character(csf.upenn12$PTAU))
+csf.upenn9$transform <- rep(TRUE, nrow(csf.upenn9))
+csf.upenn10$transform <- rep(TRUE, nrow(csf.upenn10))
+csf.upenn12$transform <- rep(FALSE, nrow(csf.upenn12))
 
 colnames(adas_scores_23) <- c("RID", "VISCODE", "TOTAL11")
 colnames(adni_neuropsych)<- c("RID", "VISCODE", "ADNI_MEM", "ADNI_EF")
 colnames(adni_imaging)   <- c("RID", "VISCODE", vol.ims)
-colnames(csf.upenn9) <- colnames(csf.upenn10) <- colnames(csf.upenn12) <- c("RID", "VISCODE", "EXAMDATE", "ABETA", "TAU", "PTAU", "COMMENT")
+colnames(csf.upenn9) <- colnames(csf.upenn10) <- colnames(csf.upenn12) <- c("RID", "VISCODE", "EXAMDATE", "ABETA", "TAU", "PTAU", "COMMENT", "TRANSFORM")
 adas_scores              <- rbind(adas_scores_1, adas_scores_23)
 csf.data                 <- rbind(csf.upenn9, csf.upenn10, csf.upenn12)
 csf.data$EXAMDATE <- as.POSIXct(csf.data$EXAMDATE)
 csf.data                 <- csf.data[order(csf.data$RID, csf.data$EXAMDATE, decreasing = FALSE), ]
+csf.data$ABETA <-           as.numeric(as.character(csf.data$ABETA))
+csf.data$PTAU <-           as.numeric(as.character(csf.data$PTAU))
+csf.data["ABETA"][which(csf.data$TRANSFORM == TRUE), ] <- (csf.data["ABETA"][which(csf.data$TRANSFORM == TRUE), ]*1.014) + 29.25
+csf.data["PTAU"][which(csf.data$TRANSFORM == TRUE), ] <- (csf.data["PTAU"][which(csf.data$TRANSFORM == TRUE), ]*.961) - .694
 rownames(csf.data)       <- 1:nrow(csf.data)
 csf.drop <- which(duplicated(csf.data[,c("RID", "VISCODE")]))
 image.drop <- which(duplicated(adni_imaging[,c("RID", "VISCODE")]))
@@ -112,6 +124,8 @@ names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE.x'] <- 'EXAMDATE_ad
 names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE.y'] <- 'EXAMDATE_csf'
 names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE'] <- 'EXAMDATE_pet'
 adas_merge_demog$AGE <- round(adas_merge_demog$AGE + (adas_merge_demog$M / 12), 1)
+
+
 adas_merge_demog$diff_adas_csf <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_csf, units = "weeks"))
 adas_merge_demog$diff_adas_pet <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_pet, units = "weeks"))
 adas_merge_demog$adas_csf_valid <- adas_merge_demog$adas_pet_valid <- rep(NA, nrow(adas_merge_demog))
@@ -119,91 +133,151 @@ adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 <= .5
 adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 > .5), ] <- 0
 adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 <= .5), ] <- 1
 adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 > .5), ] <- 0
+adas_merge_demog$csf_pos <- adas_merge_demog$suvr_pos<- rep(NA, nrow(adas_merge_demog))
+adas_merge_demog$ABETA <- as.numeric(as.character(adas_merge_demog$ABETA))
+adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM >= .78), ] <- 1
+adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM < .78), ] <- 0
+adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA < 254), ] <- 1
+adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA >= 254), ] <- 0
+adas_merge_demog$AmyPos <- rep(NA, nrow(adas_merge_demog))
+for(i in 1:nrow(adas_merge_demog)) {
+  if(!is.na(adas_merge_demog["suvr_pos"][i,] & adas_merge_demog["suvr_pos"][i,]==1)) {
+    adas_merge_demog["AmyPos"][i,] <- 1
+  } else if(!is.na(adas_merge_demog["csf_pos"][i,]) & adas_merge_demog["csf_pos"][i,]==1) {
+    adas_merge_demog["AmyPos"][i,] <- 1
+  } else if(!is.na(adas_merge_demog["csf_pos"][i,]) | !is.na(adas_merge_demog["suvr_pos"][i,])) {
+    adas_merge_demog["AmyPos"][i,] <- 0
+  }
+}
+
+
+
 
 adas.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                          "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                          "PTGENDER", "PTEDUCAT", 
                                          "APOE4", "CDRSB", "MMSE", "TOTAL11", 
                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM")]
-rids.adas.outcome <- which(!is.na(adas.outcome.data$adas_pet_valid) | !is.na(adas.outcome.data$adas_csf_valid))
-rids.adas.outcome <- unique(adas.outcome.data["RID"][rids.adas.outcome,])
-adas.outcome.data <- subset(adas.outcome.data, RID %in% rids.adas.outcome)
-adas.outcome.data <- adas.outcome.data[order(adas.outcome.data$RID, adas.outcome.data$EXAMDATE_adnimerge, decreasing = FALSE), ]
-adas.drops <- which(is.na(adas.outcome.data$TOTAL11))
-adas.outcome.data <- adas.outcome.data[-adas.drops, ]
-adas.outcome.data$ABETA <- as.numeric(adas.outcome.data$ABETA)
-adas.outcome.data$AmyPos <- rep(NA, nrow(adas.outcome.data))
-rownames(adas.outcome.data) <- 1:nrow(adas.outcome.data)
-adas.outcome.amypos <- which(adas.outcome.data$SUMMARYSUVR_COMPOSITE_REFNORM >= 0.78 | adas.outcome.data$ABETA <= 254)
-adas.outcome.data["AmyPos"][adas.outcome.amypos, ] <- 1
-adas.outcome.amyneg <- which(adas.outcome.data$SUMMARYSUVR_COMPOSITE_REFNORM < 0.78 & adas.outcome.data$ABETA > 254)
-adas.outcome.data["AmyPos"][adas.outcome.amyneg, ] <- 0
-
-adas.outcome.data$RID <- factor(adas.outcome.data$RID)
-adas.outcome.data <- TimeSinceBaselineValidAmy(adas.outcome.data, "M")
-adas.outcome.data <- subset(adas.outcome.data, new_time <= 24 & new_time != 18)
-adas.outcome.data$RID <- factor(adas.outcome.data$RID)
-adas.outcome.data <- CreateBaselineVar(adas.outcome.data, "AmyPos")
-#Baseline cohort
-
-adas_baseline           <- subset(adas.outcome.data, new_time == 0)
-adas_baseline$DX        <- factor(adas_baseline$DX)
-adas_baseline$APOE4     <- factor(adas_baseline$APOE4)
-adas_baseline$PTGENDER  <- factor(adas_baseline$PTGENDER)
-adas_baseline$COLPROT   <- factor(adas_baseline$COLPROT)
-adas_baseline$AmyPos    <- factor(adas_baseline$AmyPos)
-adas_baseline$new_time  <- factor(adas_baseline$new_time)
-
-adas_desc <- adas_baseline[,c("DX", "APOE4", "PTGENDER", "AGE", "TOTAL11", 
-                              "MMSE", "CDRSB", "PTEDUCAT", "SUMMARYSUVR_COMPOSITE_REFNORM",
-                              "AmyPos")]
-desc.table <- table1(adas_desc, splitby = ~ DX)$Table1
-desc.table <- desc.table[c(1, 6:nrow(desc.table)), ]
-
-adas_desc_time <- adas.outcome.data[,c("TOTAL11", "new_time", "DX")]
-adas_desc_time$new_time <- factor(adas_desc_time$new_time)
-desc.table.time <- table1(adas_desc_time, splitby = ~ new_time)$Table1
-desc.table.time <- desc.table.time[c(1:3, 9:12), ]
-
-
-## Neuropath outcome data
-neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "M", "APOE4", "PTGENDER", "AGE", "TOTAL11", 
-                                         "MMSE", "CDRSB", "PTEDUCAT", "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
+adas.outcome.data <- adas.outcome.data[-which(is.na(adas.outcome.data$DX)),]
+adas.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
+                                         "VISCODE", "EXAMDATE_adnimerge", "AGE", 
+                                         "PTGENDER", "PTEDUCAT", 
+                                         "APOE4", "CDRSB", "MMSE", "TOTAL11", 
+                                         "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
+                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
                                          "NPLBOD", "NPAMY")]
-
-
-neuropath.outcome.rows <- which(complete.cases(neuropath.outcome[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+neuropath.outcome.rows <- which(complete.cases(adas.neuropath.outcome[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
                                                          "NPLBOD", "NPAMY")]))
+adas.neuropath.outcome <- adas.neuropath.outcome[neuropath.outcome.rows,]
+adas.neuropath.outcome <- adas.neuropath.outcome[-which(is.na(adas.neuropath.outcome$DX)), ]
+
+mem.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
+                                                           "VISCODE", "EXAMDATE_adnimerge", "AGE", 
+                                                           "PTGENDER", "PTEDUCAT", 
+                                                           "APOE4", "ADNI_MEM", "ADNI_EF",
+                                                           "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
+                                                           "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
+
+mem.outcome.data <- mem.outcome.data[-which(is.na(mem.outcome.data$DX)), ]
+mem.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
+                                             "VISCODE", "EXAMDATE_adnimerge", "AGE", 
+                                             "PTGENDER", "PTEDUCAT", 
+                                             "APOE4", "ADNI_MEM", "ADNI_EF",
+                                             "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
+                                             "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", 
+                                             "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                             "NPLBOD", "NPAMY")]
+
+
+
+mem.neuropath.outcome <- mem.neuropath.outcome[neuropath.outcome.rows, ]
+mem.neuropath.outcome <- mem.neuropath.outcome[-which(is.na(mem.neuropath.outcome$DX)), ]
+
+
+image.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
+                                          "VISCODE", "EXAMDATE_adnimerge", "AGE", 
+                                          "PTGENDER", "PTEDUCAT", 
+                                          "APOE4", vol.ims, 
+                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
+                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
+keeprows <- intersect(which(!is.na(image.outcome.data$DX)), which(!is.na(image.outcome.data$ST103CV)))
+image.outcome.data      <- image.outcome.data[keeprows, ]
+
+image.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
+                                          "VISCODE", "EXAMDATE_adnimerge", "AGE", 
+                                          "PTGENDER", "PTEDUCAT", 
+                                          "APOE4", vol.ims, 
+                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
+                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos",
+                                          "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                          "NPLBOD", "NPAMY")]
+image.neuropath.outcome <- image.neuropath.outcome[neuropath.outcome.rows,]
+keeprows.neuro          <- intersect(which(!is.na(image.neuropath.outcome$DX)), which(!is.na(image.neuropath.outcome$ST103CV)))
+image.neuropath.outcome <- image.neuropath.outcome[keeprows.neuro, ]
+
+
+
+
 neuropath.outcome <- neuropath.outcome[neuropath.outcome.rows,]
 neuropath.outcome$TAU_pos_path <- neuropath.outcome$Amy_pos_path <- neuropath.outcome$TDP_pos_path <- neuropath.outcome$Lewy_pos_path <- neuropath.outcome$CAA_path <- rep(NA, nrow(neuropath.outcome))
 neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK >= 3 & neuropath.outcome$NPBRAAK <= 7 ), ] <- 1
 neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK < 3 | neuropath.outcome$NPBRAAK > 7 ), ] <- 0
-neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 2 | neuropath.outcome$NPNEUR ==3 ), ] <- 1
-neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 0 | neuropath.outcome$NPNEUR ==1 ), ] <- 0
+neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 2 | neuropath.outcome$NPNEUR == 3 ), ] <- 1
+neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 0 | neuropath.outcome$NPNEUR == 1 ), ] <- 0
 neuropath.outcome["TDP_pos_path"][which(neuropath.outcome$NPTDPA == 1 | neuropath.outcome$NPTDPB == 1 | neuropath.outcome$NPTDPC == 1 | neuropath.outcome$NPTDPD == 1 | neuropath.outcome$NPTDPE == 1), ] <- 1
-neuropath.outcome["TDP_pos_path"][is.na(neuropath.outcome$TDP_pos_path),] <- 0
-neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD ==0), ] <- 0
-neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD !=0), ] <- 1
-neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY >=2 ), ] <- 1
-neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY < 2), ] <- 0
+neuropath.outcome["TDP_pos_path"][is.na(neuropath.outcome$TDP_pos_path),]  <- 0
+neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD == 0), ] <- 0
+neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD != 0), ] <- 1
+neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY >= 2 ), ]      <- 1
+neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY < 2), ]        <- 0
 drops.neuro <- which(is.na(neuropath.outcome$PTGENDER))
-neuropath.outcome <- neuropath.outcome[-drops.neuro,]
+neuropath.outcome <- neuropath.outcome[-drops.neuro, ]
 neuropath.outcome$RID <- factor(neuropath.outcome$RID)
 neuropath.outcome <- TimeSinceBaseline(data = neuropath.outcome,
                                        timecol = "M")
-neuropath.outcome <- subset(neuropath.outcome, new_time <= 24)
 
+
+
+
+
+
+
+
+
+
+
+
+
+neuropath.outcome$Amy_pos_path  <- factor(neuropath.outcome$Amy_pos_path)
+neuropath.outcome$TDP_pos_path  <- factor(neuropath.outcome$TDP_pos_path)
+neuropath.outcome$Lewy_pos_path <- factor(neuropath.outcome$Lewy_pos_path)
+neuropath.outcome$CAA_path      <- factor(neuropath.outcome$CAA_path)
+neuropath.outcome               <- subset(neuropath.outcome, new_time <= 24)
+neuropath.outcome$RID           <- factor(neuropath.outcome$RID)
+full.mci.aplus.path             <- which(neuropath.outcome$new_time==0 & neuropath.outcome$DX == "MCI" & neuropath.outcome$Amy_pos_path == 1)
+full.mci.aplus.path <- unique(neuropath.outcome["RID"][full.mci.aplus.path,])
+full.mci.aplus.path <- subset(neuropath.outcome, RID %in% full.mci.aplus.path)
+rids.noptau <- neuropath.outcome["RID"][which(neuropath.outcome$new_time == 0 & is.na(neuropath.outcome$PTAU)),]
+mci.ptau <- subset(full.mci.aplus.path, RID %notin% rids.noptau)
+mci.ptau$taupos_csf <- as.numeric(rep(NA, nrow(mci.ptau)))
+mci.ptau$PTAU <- as.numeric(as.character(mci.ptau$PTAU))
+mci.ptau["taupos_csf"][which(mci.ptau$PTAU > 24), ] <- 1
+mci.ptau["taupos_csf"][which(mci.ptau$PTAU <= 24), ] <- 0
+mci.ptau <- CreateBaselineVar(mci.ptau, "taupos_csf")
+mci.ptau$taupos_csf_bl <- factor(mci.ptau$taupos_csf_bl)
+neuro.mod <- lmer(TOTAL11 ~ new_time + taupos_csf + new_time*taupos_csf_bl + (1|RID), data = mci.ptau)
+summary(neuro.mod)
 #### model fitting
 
 
-base.mci1     <- subset(adas_baseline, DX=="MCI" & CDRSB>=.5 & MMSE >= 20 & MMSE <=26 & AGE>=50 & AGE <=85 & AmyPos==1)
+base.mci1           <- subset(adas_baseline, DX=="MCI" & CDRSB>=.5 & MMSE >= 20 & MMSE <=26 & AGE>=50 & AGE <=85 & AmyPos==1)
 desc.table.base.mci <- base.mci1[,c("DX", "APOE4", "PTGENDER", "AGE", "TOTAL11", 
                                       "MMSE", "CDRSB", "PTEDUCAT",
                                       "AmyPos")]
 desc.table.base.mci <- table1(desc.table.base.mci)$Table1
 
-data.mci1     <- PullLongData(base.mci1, adas.outcome.data)
+data.mci1           <- PullLongData(base.mci1, adas.outcome.data)
 
 
 all.rids            <- levels(adas.outcome.data$RID)
@@ -277,5 +351,4 @@ ad2.analyzed
 ad2.analyzed.cdr <- PlotObsData(data.ad2,formula.fixed = "CDRSB ~ new_time", ylab= "CDRSB")
 ad2.analyzed.cdr
 
-intervals(mod1)
 
