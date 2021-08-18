@@ -54,16 +54,38 @@ TimeSinceBaselineValidAmy <- function(data, timecol) {
   return(return.list)
 }
 
- 
 
-CreateBaselineVar <- function(data, column.name) {
+
+SetNeuroData <- function(data) {
+  data$TAU_pos_path <- data$Amy_pos_path <- data$TDP_pos_path <- data$Lewy_pos_path <- data$CAA_path <- rep(NA, nrow(data))
+  data["TAU_pos_path"][which(data$NPBRAAK >= 3 & data$NPBRAAK <= 7 ), ] <- 1
+  data["TAU_pos_path"][which(data$NPBRAAK < 3 | data$NPBRAAK > 7 ), ] <- 0
+  data["Amy_pos_path"][which(data$NPNEUR == 2 | data$NPNEUR == 3 ), ] <- 1
+  data["Amy_pos_path"][which(data$NPNEUR == 0 | data$NPNEUR == 1 ), ] <- 0
+  data["TDP_pos_path"][which(complete.cases(data[,c("NPTDPA","NPTDPB","NPTDPC","NPTDPD","NPTDPE")])),]  <- 0
+  data["TDP_pos_path"][which(data$NPTDPA == 1 | data$NPTDPB == 1 | data$NPTDPC == 1 | data$NPTDPD == 1 | data$NPTDPE == 1), ] <- 1
+  data["Lewy_pos_path"][which(data$NPLBOD == 0), ] <- 0
+  data["Lewy_pos_path"][which(data$NPLBOD != 0), ] <- 1
+  data["CAA_path"][which(data$NPAMY >= 2 ), ]      <- 1
+  data["CAA_path"][which(data$NPAMY < 2), ]        <- 0
+  data$Amy_pos_path  <- factor(data$Amy_pos_path)
+  data$TDP_pos_path  <- factor(data$TDP_pos_path)
+  data$Lewy_pos_path <- factor(data$Lewy_pos_path)
+  data$CAA_path      <- factor(data$CAA_path)
+  return(data)
+}
+
+
+
+
+CreateBaselineVar <- function(data, column.name, timecol) {
   splitsubj <- split(data, data$RID)
   comb.list <- list()
   for(i in 1:length(splitsubj)) {
     bline.name <- paste(column.name, "_bl", sep="")
     subj <- splitsubj[[i]]
     rows <- nrow(subj)
-    bline.row <- which.min(subj$new_time)
+    bline.row <- which.min(subj[[timecol]])
     bline.val <- subj[column.name][bline.row,]
     bline.vec <- rep(bline.val, rows)
     subj[bline.name] <- bline.vec
@@ -208,18 +230,31 @@ SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, b
 
 
 
-CombineSimPlots <- function(nonenrich, enrich, limits) {
+CombineSimPlots <- function(power.list, limits) {
+  nonenrich <- power.list[[1]] 
+  name1 <- names(power.list)[1]
   sumstats_non <- nonenrich$summary_stats
-  sumstats_enr <- enrich$summary_stats
-  sumstats_non$Group <- rep("Non-Enriched", nrow(sumstats_non))
-  sumstats_enr$Group <- rep("Enriched", nrow(sumstats_enr))
-  fullsumstats <- rbind(sumstats_enr, sumstats_non)
-  gplot.sim <- ggplot(data = fullsumstats, aes(x=nlevels, y=mean, colour=Group)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
+  sumstats_non$Group <- rep(name1, nrow(sumstats_non))
+  plot.df <- sumstats_non
+  for(i in 2:length(power.list)){
+    enriched <- power.list[[i]]
+    name <- names(power.list)[i]
+    enriched <- enriched$summary_stats
+    enriched$Group <- rep(name, nrow(enriched))
+    plot.df <- rbind(plot.df, enriched)
+  }
+  gplot.sim <- ggplot(data = plot.df, aes(x=nlevels, y=mean, colour=Group)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
   gplot.sim <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)")
-  return(list("plot" = gplot.sim, "fullstats" = fullsumstats))
+  return(list("plot" = gplot.sim, "fullstats" = plot.df))
 } 
 
 
+
+QuickAdjust <- function(data) {
+  data$RID <- factor(data$RID)
+  data <- TimeSinceBaselineValidAmy(data, "M")
+  data <- subset(data, new_time <= 24)
+  }
 
 
 

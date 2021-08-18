@@ -42,10 +42,20 @@ library(nlme)
 library(simr)
 #library(MargCond)
 library(stringr)
-simrOptions(nsim=100)
-
-test.adas       <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
+cdr_global      <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
+cdr_global$EXAMDATE <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
+cdr_global          <- cdr_global[order(cdr_global$RID, cdr_global$EXAMDATE, decreasing = FALSE), ]
+cdr_global$VISCODE2 <- as.character(cdr_global$VISCODE2)
+cdr_global["VISCODE2"][which(cdr_global$VISCODE2 == "sc"), ] <- "bl"
+cdr_global <- cdr_global[,c("RID", "VISCODE2", "CDGLOBAL")]
+colnames(cdr_global) <- c("RID", "VISCODE", "CDGLOBAL")
 adni_imaging    <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/unharmonized_freesurfer_imaging.csv")
+adni_imaging["DXCURREN"][which(is.na(adni_imaging$DXCURREN)), ] <- 0
+adni_imaging["DXCHANGE"][which(is.na(adni_imaging$DXCHANGE)), ] <- 0
+adni_imaging["DIAGNOSIS"][which(is.na(adni_imaging$DIAGNOSIS)), ] <- 0
+adni_imaging$diagnosis_image <- rowSums2(as.matrix(adni_imaging[,c("DXCURREN", "DXCHANGE", "DIAGNOSIS")]))
+adni_imaging$age_image <- adni_imaging$AGE
+adni_imaging$ptgender_image <- adni_imaging$PTGENDER
 adas_scores_1   <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
 adas_scores_23  <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADAS_ADNIGO23.csv")
 adni_neuropsych <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/Neuropsychological (1)/UWNPSYCHSUM_03_09_21.csv")
@@ -53,7 +63,13 @@ csf.upenn9      <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/D
 csf.upenn10     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/Biospecimen_Results/UPENNBIOMK10_07_29_19.csv")
 csf.upenn12     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/Biospecimen_Results/UPENNBIOMK12_01_04_21.csv")
 neuropath.data  <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/NEUROPATH_05_17_21.csv")
-
+non.ad.imputation <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADNI-nonADimputations-class.csv")
+non.ad.imputation["TDP43"][which(non.ad.imputation$TDP43 == TRUE), ] <- 1
+non.ad.imputation["TDP43"][which(non.ad.imputation$TDP43 == FALSE), ] <- 0
+non.ad.imputation["LEWY"][which(non.ad.imputation$LEWY == TRUE), ] <- 1
+non.ad.imputation["LEWY"][which(non.ad.imputation$LEWY == FALSE), ] <- 0
+non.ad.imputation["CAA"][which(non.ad.imputation$CAA == TRUE), ] <- 1
+non.ad.imputation["CAA"][which(non.ad.imputation$CAA == FALSE), ] <- 0
 adas_scores_1   <- adas_scores_1[,c("RID", "VISCODE",  "TOTAL11")]
 adas_scores_23  <- adas_scores_23[,c("RID", "VISCODE2", "TOTSCORE")]
 adni_neuropsych <- adni_neuropsych[,c("RID", "VISCODE2", "ADNI_MEM", "ADNI_EF")]
@@ -70,7 +86,6 @@ csf.upenn12$PTAU <-           as.numeric(as.character(csf.upenn12$PTAU))
 csf.upenn9$transform <- rep(TRUE, nrow(csf.upenn9))
 csf.upenn10$transform <- rep(TRUE, nrow(csf.upenn10))
 csf.upenn12$transform <- rep(FALSE, nrow(csf.upenn12))
-
 colnames(adas_scores_23) <- c("RID", "VISCODE", "TOTAL11")
 colnames(adni_neuropsych)<- c("RID", "VISCODE", "ADNI_MEM", "ADNI_EF")
 colnames(adni_imaging)   <- c("RID", "VISCODE", vol.ims)
@@ -91,6 +106,7 @@ csf.data <- csf.data[-csf.drop,]
 adas_scores              <- adas_scores[order(adas_scores$RID, 
                                               adas_scores$VISCODE, 
                                               decreasing = FALSE), ]
+
 column.keeps             <- c("RID", "DX", "COLPROT", "ORIGPROT", 
                                "VISCODE", "EXAMDATE", "AGE", 
                                "PTGENDER", "PTEDUCAT", 
@@ -106,9 +122,10 @@ adas_merge_demog <- merge(adas_merge_demog, adni_neuropsych, by=c("RID", "VISCOD
 adas_merge_demog <- merge(adas_merge_demog, adni_imaging, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog <- merge(adas_merge_demog, csf.data, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog <- merge(adas_merge_demog, neuropath.data, by="RID", all = TRUE)
+adas_merge_demog <- merge(adas_merge_demog, non.ad.imputation, by="RID", all = TRUE)
+adas_merge_demog <- merge(adas_merge_demog, cdr_global, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog$EXAMDATE.x <- as.POSIXct(adas_merge_demog$EXAMDATE.x)
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$EXAMDATE.x, decreasing = FALSE), ]
-
 
 av45                 <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/UCBERKELEYAV45_01_14_21.csv")
 av45.keeps           <- c("RID", "EXAMDATE", "VISCODE2", "SUMMARYSUVR_COMPOSITE_REFNORM")
@@ -133,12 +150,15 @@ adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 <= .5
 adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 > .5), ] <- 0
 adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 <= .5), ] <- 1
 adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 > .5), ] <- 0
-adas_merge_demog$csf_pos <- adas_merge_demog$suvr_pos<- rep(NA, nrow(adas_merge_demog))
+adas_merge_demog$csf_pos <- adas_merge_demog$suvr_pos<- adas_merge_demog$ptau_pos<- rep(NA, nrow(adas_merge_demog))
 adas_merge_demog$ABETA <- as.numeric(as.character(adas_merge_demog$ABETA))
 adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM >= .78), ] <- 1
 adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM < .78), ] <- 0
 adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA < 254), ] <- 1
 adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA >= 254), ] <- 0
+adas_merge_demog["ptau_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$PTAU >= 24), ] <- 1
+adas_merge_demog["ptau_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$PTAU < 24), ] <- 0
+
 adas_merge_demog$AmyPos <- rep(NA, nrow(adas_merge_demog))
 for(i in 1:nrow(adas_merge_demog)) {
   if(!is.na(adas_merge_demog["suvr_pos"][i,] & adas_merge_demog["suvr_pos"][i,]==1)) {
@@ -150,45 +170,62 @@ for(i in 1:nrow(adas_merge_demog)) {
   }
 }
 
+adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M, decreasing = FALSE), ]
+adas_merge_demog$M_vis <- substr(adas_merge_demog$VISCODE, 2, 10)
+adas_merge_demog$M_vis <- as.numeric(adas_merge_demog$M_vis)
+adas_merge_demog["M_vis"][which(adas_merge_demog$VISCODE=="bl"), ] <- 0
+adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
+adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
 
 
 
+
+baseline.var.list <- c("DX","AGE", "PTGENDER", "PTEDUCAT", 
+                       "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", 
+                       "ABETA", "TAU", "PTAU", "AmyPos", "ptau_pos", "CDGLOBAL" )
+for(i in baseline.var.list) {
+  adas_merge_demog <- CreateBaselineVar(adas_merge_demog, i, "M_vis")
+}
+
+
+baseline.var.list <- paste(baseline.var.list, "_bl", sep="")
 adas.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                          "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                          "PTGENDER", "PTEDUCAT", 
-                                         "APOE4", "CDRSB", "MMSE", "TOTAL11", 
+                                         "APOE4", "CDRSB", "MMSE", "TOTAL11", "mPACCtrailsB", baseline.var.list,
                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
+                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "ptau_pos")]
 adas.outcome.data <- adas.outcome.data[-which(is.na(adas.outcome.data$DX)),]
+adas.outcome.data <- adas.outcome.data[order(adas.outcome.data$RID, adas.outcome.data$M, decreasing = FALSE),]
+
 adas.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                          "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                          "PTGENDER", "PTEDUCAT", 
-                                         "APOE4", "CDRSB", "MMSE", "TOTAL11", 
+                                         "APOE4", "CDRSB", "MMSE", "TOTAL11", "mPACCtrailsB",baseline.var.list,
                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                         "NPLBOD", "NPAMY")]
+                                         "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "ptau_pos","TDP43", "LEWY", "CAA", "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                         "NPLBOD", "NPAMY", "fulllewy", "fulltdp43", "fullcaa")]
 neuropath.outcome.rows <- which(complete.cases(adas.neuropath.outcome[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                                         "NPLBOD", "NPAMY")]))
+                                                         "NPLBOD", "NPAMY")]) | complete.cases(adas.neuropath.outcome[,c("TDP43", "LEWY", "CAA")]))
 adas.neuropath.outcome <- adas.neuropath.outcome[neuropath.outcome.rows,]
 adas.neuropath.outcome <- adas.neuropath.outcome[-which(is.na(adas.neuropath.outcome$DX)), ]
 
 mem.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                                            "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                                            "PTGENDER", "PTEDUCAT", 
-                                                           "APOE4", "ADNI_MEM", "ADNI_EF",
-                                                           "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                                           "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
+                                                           "APOE4", "ADNI_MEM", "ADNI_EF","mPACCtrailsB",baseline.var.list,
+                                                           "adas_pet_valid", "adas_csf_valid","CDRSB", "MMSE", "EXAMDATE_pet", "M",
+                                                           "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "ptau_pos")]
 
 mem.outcome.data <- mem.outcome.data[-which(is.na(mem.outcome.data$DX)), ]
 mem.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                              "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                              "PTGENDER", "PTEDUCAT", 
                                              "APOE4", "ADNI_MEM", "ADNI_EF",
-                                             "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                             "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", 
+                                             "adas_pet_valid", "adas_csf_valid", "CDRSB", "MMSE","EXAMDATE_pet", "M","mPACCtrailsB",baseline.var.list,
+                                             "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "ptau_pos","TDP43", "LEWY", "CAA",
                                              "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                             "NPLBOD", "NPAMY")]
-
+                                             "NPLBOD", "NPAMY", "fulllewy", "fulltdp43", "fullcaa")]
 
 
 mem.neuropath.outcome <- mem.neuropath.outcome[neuropath.outcome.rows, ]
@@ -199,97 +236,637 @@ image.outcome.data <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "OR
                                           "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                           "PTGENDER", "PTEDUCAT", 
                                           "APOE4", vol.ims, 
-                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos")]
-keeprows <- intersect(which(!is.na(image.outcome.data$DX)), which(!is.na(image.outcome.data$ST103CV)))
-image.outcome.data      <- image.outcome.data[keeprows, ]
-
+                                          "adas_pet_valid", "adas_csf_valid","CDRSB", "MMSE", "EXAMDATE_pet", "M","mPACCtrailsB",baseline.var.list,
+                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos", "ptau_pos")]
+keeprows <- which(is.na(image.outcome.data$ST103CV) | is.na(image.outcome.data$DX_bl) | is.na(image.outcome.data$AmyPos_bl))
+image.outcome.data      <- image.outcome.data[-keeprows, ]
 image.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT", "ORIGPROT", 
                                           "VISCODE", "EXAMDATE_adnimerge", "AGE", 
                                           "PTGENDER", "PTEDUCAT", 
                                           "APOE4", vol.ims, 
-                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M",
-                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM", "AmyPos",
+                                          "adas_pet_valid", "adas_csf_valid", "EXAMDATE_pet", "M","mPACCtrailsB",baseline.var.list,
+                                          "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM","CDRSB", "MMSE", "AmyPos","ptau_pos","TDP43", "LEWY", "CAA",
                                           "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                          "NPLBOD", "NPAMY")]
+                                          "NPLBOD", "NPAMY", "fulllewy", "fulltdp43", "fullcaa")]
 image.neuropath.outcome <- image.neuropath.outcome[neuropath.outcome.rows,]
 keeprows.neuro          <- intersect(which(!is.na(image.neuropath.outcome$DX)), which(!is.na(image.neuropath.outcome$ST103CV)))
 image.neuropath.outcome <- image.neuropath.outcome[keeprows.neuro, ]
 
+adas.neuropath.outcome  <- SetNeuroData(adas.neuropath.outcome)
+for(i in 1:nrow(adas.neuropath.outcome)) {
+  if(!is.na(adas.neuropath.outcome["TDP_pos_path"][i,])) {
+    adas.neuropath.outcome["fulltdp43"][i,] <- adas.neuropath.outcome["TDP_pos_path"][i,]
+  } else if(!is.na(adas.neuropath.outcome["TDP43"][i,])) {
+    adas.neuropath.outcome["fulltdp43"][i,] <- adas.neuropath.outcome["TDP43"][i,]
+  }
+  
+  if(!is.na(adas.neuropath.outcome["Lewy_pos_path"][i,])) {
+    adas.neuropath.outcome["fulllewy"][i,] <- adas.neuropath.outcome["Lewy_pos_path"][i,]
+  } else if(!is.na(adas.neuropath.outcome["LEWY"][i,])) {
+    adas.neuropath.outcome["fulllewy"][i,] <- adas.neuropath.outcome["LEWY"][i,]
+  }
+  
+  if(!is.na(adas.neuropath.outcome["CAA_path"][i,])) {
+    adas.neuropath.outcome["fullcaa"][i,] <- adas.neuropath.outcome["CAA_path"][i,]
+  } else if(!is.na(adas.neuropath.outcome["CAA"][i,])) {
+    adas.neuropath.outcome["fullcaa"][i,] <- adas.neuropath.outcome["CAA"][i,]
+  }
+  
+}
 
 
 
-neuropath.outcome <- neuropath.outcome[neuropath.outcome.rows,]
-neuropath.outcome$TAU_pos_path <- neuropath.outcome$Amy_pos_path <- neuropath.outcome$TDP_pos_path <- neuropath.outcome$Lewy_pos_path <- neuropath.outcome$CAA_path <- rep(NA, nrow(neuropath.outcome))
-neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK >= 3 & neuropath.outcome$NPBRAAK <= 7 ), ] <- 1
-neuropath.outcome["TAU_pos_path"][which(neuropath.outcome$NPBRAAK < 3 | neuropath.outcome$NPBRAAK > 7 ), ] <- 0
-neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 2 | neuropath.outcome$NPNEUR == 3 ), ] <- 1
-neuropath.outcome["Amy_pos_path"][which(neuropath.outcome$NPNEUR == 0 | neuropath.outcome$NPNEUR == 1 ), ] <- 0
-neuropath.outcome["TDP_pos_path"][which(neuropath.outcome$NPTDPA == 1 | neuropath.outcome$NPTDPB == 1 | neuropath.outcome$NPTDPC == 1 | neuropath.outcome$NPTDPD == 1 | neuropath.outcome$NPTDPE == 1), ] <- 1
-neuropath.outcome["TDP_pos_path"][is.na(neuropath.outcome$TDP_pos_path),]  <- 0
-neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD == 0), ] <- 0
-neuropath.outcome["Lewy_pos_path"][which(neuropath.outcome$NPLBOD != 0), ] <- 1
-neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY >= 2 ), ]      <- 1
-neuropath.outcome["CAA_path"][which(neuropath.outcome$NPAMY < 2), ]        <- 0
-drops.neuro <- which(is.na(neuropath.outcome$PTGENDER))
-neuropath.outcome <- neuropath.outcome[-drops.neuro, ]
-neuropath.outcome$RID <- factor(neuropath.outcome$RID)
-neuropath.outcome <- TimeSinceBaseline(data = neuropath.outcome,
-                                       timecol = "M")
+mem.neuropath.outcome   <- SetNeuroData(mem.neuropath.outcome)
+for(i in 1:nrow(mem.neuropath.outcome)) {
+  if(!is.na(mem.neuropath.outcome["TDP_pos_path"][i,])) {
+    mem.neuropath.outcome["fulltdp43"][i,] <- mem.neuropath.outcome["TDP_pos_path"][i,]
+  } else if(!is.na(mem.neuropath.outcome["TDP43"][i,])) {
+    mem.neuropath.outcome["fulltdp43"][i,] <- mem.neuropath.outcome["TDP43"][i,]
+  }
+  
+  if(!is.na(mem.neuropath.outcome["Lewy_pos_path"][i,])) {
+    mem.neuropath.outcome["fulllewy"][i,] <- mem.neuropath.outcome["Lewy_pos_path"][i,]
+  } else if(!is.na(mem.neuropath.outcome["LEWY"][i,])) {
+    mem.neuropath.outcome["fulllewy"][i,] <- mem.neuropath.outcome["LEWY"][i,]
+  }
+  
+  if(!is.na(mem.neuropath.outcome["CAA_path"][i,])) {
+    mem.neuropath.outcome["fullcaa"][i,] <- mem.neuropath.outcome["CAA_path"][i,]
+  } else if(!is.na(mem.neuropath.outcome["CAA"][i,])) {
+    mem.neuropath.outcome["fullcaa"][i,] <- mem.neuropath.outcome["CAA"][i,]
+  }
+  
+}
+
+
+image.neuropath.outcome <- SetNeuroData(image.neuropath.outcome)
+for(i in 1:nrow(image.neuropath.outcome)) {
+  if(!is.na(image.neuropath.outcome["TDP_pos_path"][i,])) {
+    image.neuropath.outcome["fulltdp43"][i,] <- image.neuropath.outcome["TDP_pos_path"][i,]
+  } else if(!is.na(image.neuropath.outcome["TDP43"][i,])) {
+    image.neuropath.outcome["fulltdp43"][i,] <- image.neuropath.outcome["TDP43"][i,]
+  }
+  
+  if(!is.na(image.neuropath.outcome["Lewy_pos_path"][i,])) {
+    image.neuropath.outcome["fulllewy"][i,] <- image.neuropath.outcome["Lewy_pos_path"][i,]
+  } else if(!is.na(image.neuropath.outcome["LEWY"][i,])) {
+    image.neuropath.outcome["fulllewy"][i,] <- image.neuropath.outcome["LEWY"][i,]
+  }
+  
+  if(!is.na(image.neuropath.outcome["CAA_path"][i,])) {
+    image.neuropath.outcome["fullcaa"][i,] <- image.neuropath.outcome["CAA_path"][i,]
+  } else if(!is.na(image.neuropath.outcome["CAA"][i,])) {
+    image.neuropath.outcome["fullcaa"][i,] <- image.neuropath.outcome["CAA"][i,]
+  }
+  
+}
 
 
 
 
 
+adas.outcome.data <- adas.outcome.data[order(adas.outcome.data$RID, adas.outcome.data$M, decreasing = FALSE),]
+adas.outcome.data$RID <- factor(adas.outcome.data$RID)
+adas.outcome.data <- TimeSinceBaselineValidAmy(adas.outcome.data, "M")
+adas.outcome.data <- subset(adas.outcome.data, new_time <= 24)
+
+adas.neuropath.outcome <- adas.neuropath.outcome[order(adas.neuropath.outcome$RID, adas.neuropath.outcome$M, decreasing = FALSE),]
+adas.neuropath.outcome$RID <- factor(adas.neuropath.outcome$RID)
+adas.neuropath.outcome <- TimeSinceBaselineValidAmy(adas.neuropath.outcome, "M")
+adas.neuropath.outcome <- subset(adas.neuropath.outcome, new_time <= 24)
+
+mem.outcome.data      <- mem.outcome.data[order(mem.outcome.data$RID, mem.outcome.data$M, decreasing = FALSE),]
+mem.outcome.data      <- QuickAdjust(mem.outcome.data)
+
+mem.neuropath.outcome <- mem.neuropath.outcome[order(mem.neuropath.outcome$RID, mem.neuropath.outcome$M, decreasing = FALSE),]
+mem.neuropath.outcome <- QuickAdjust(mem.neuropath.outcome)
+
+image.outcome.data    <- image.outcome.data[order(image.outcome.data$RID, image.outcome.data$M, decreasing = FALSE),]
+image.outcome.data    <- QuickAdjust(image.outcome.data)
+
+image.neuropath.outcome <- image.neuropath.outcome[order(image.neuropath.outcome$RID, image.neuropath.outcome$M, decreasing = FALSE),]
+image.neuropath.outcome <- QuickAdjust(image.neuropath.outcome)
+
+all.data.list <- list(adas.outcome.data, adas.neuropath.outcome,
+                      mem.outcome.data, mem.neuropath.outcome)
 
 
-
-
-
-
-
-
-neuropath.outcome$Amy_pos_path  <- factor(neuropath.outcome$Amy_pos_path)
-neuropath.outcome$TDP_pos_path  <- factor(neuropath.outcome$TDP_pos_path)
-neuropath.outcome$Lewy_pos_path <- factor(neuropath.outcome$Lewy_pos_path)
-neuropath.outcome$CAA_path      <- factor(neuropath.outcome$CAA_path)
-neuropath.outcome               <- subset(neuropath.outcome, new_time <= 24)
-neuropath.outcome$RID           <- factor(neuropath.outcome$RID)
-full.mci.aplus.path             <- which(neuropath.outcome$new_time==0 & neuropath.outcome$DX == "MCI" & neuropath.outcome$Amy_pos_path == 1)
-full.mci.aplus.path <- unique(neuropath.outcome["RID"][full.mci.aplus.path,])
-full.mci.aplus.path <- subset(neuropath.outcome, RID %in% full.mci.aplus.path)
-rids.noptau <- neuropath.outcome["RID"][which(neuropath.outcome$new_time == 0 & is.na(neuropath.outcome$PTAU)),]
-mci.ptau <- subset(full.mci.aplus.path, RID %notin% rids.noptau)
-mci.ptau$taupos_csf <- as.numeric(rep(NA, nrow(mci.ptau)))
-mci.ptau$PTAU <- as.numeric(as.character(mci.ptau$PTAU))
-mci.ptau["taupos_csf"][which(mci.ptau$PTAU > 24), ] <- 1
-mci.ptau["taupos_csf"][which(mci.ptau$PTAU <= 24), ] <- 0
-mci.ptau <- CreateBaselineVar(mci.ptau, "taupos_csf")
-mci.ptau$taupos_csf_bl <- factor(mci.ptau$taupos_csf_bl)
-neuro.mod <- lmer(TOTAL11 ~ new_time + taupos_csf + new_time*taupos_csf_bl + (1|RID), data = mci.ptau)
-summary(neuro.mod)
 #### model fitting
 
 
-base.mci1           <- subset(adas_baseline, DX=="MCI" & CDRSB>=.5 & MMSE >= 20 & MMSE <=26 & AGE>=50 & AGE <=85 & AmyPos==1)
-desc.table.base.mci <- base.mci1[,c("DX", "APOE4", "PTGENDER", "AGE", "TOTAL11", 
-                                      "MMSE", "CDRSB", "PTEDUCAT",
-                                      "AmyPos")]
-desc.table.base.mci <- table1(desc.table.base.mci)$Table1
+simrOptions(nsim=1000)
+mci.scen1.generic <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1))
+mci.scen1.i       <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl >= 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 85))
+mci.scen1.i.earlyage <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl >= 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65))
+mci.scen1.i.tplus <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl >= 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 85 & ptau_pos_bl==1))
+mci.scen1.neur    <- lapply(all.data.list[c(2,4)], function(x)subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl >= 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65 & fullcaa==0 & fulltdp43==0 & fulllewy==0))###############)
 
-data.mci1           <- PullLongData(base.mci1, adas.outcome.data)
+ad.scen1.generic     <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1))
+ad.scen1.i           <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85))
+ad.scen1.earlyage    <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 65))
+ad.scen1.tplus       <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85 & ptau_pos_bl==1))
+ad.scen1.neur        <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
+
+early.ad.scen1.generic       <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1))
+early.ad.scen1.i         <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & CDGLOBAL_bl==.5 | CDGLOBAL_bl==1 &  MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85))
+early.ad.scen1.earlyage <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & CDGLOBAL_bl==.5 | CDGLOBAL_bl==1 &  MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 65))
+early.ad.scen1.tplus     <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & CDGLOBAL_bl==.5 | CDGLOBAL_bl==1 &  MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85 & ptau_pos_bl==1))
+early.ad.scen1.neur      <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" | DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl==.5 | CDGLOBAL_bl==1 &  MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 65 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
 
 
-all.rids            <- levels(adas.outcome.data$RID)
-nrids               <- nlevels(adas.outcome.data$RID)
-keeps.rids          <- sample(all.rids, 300, prob = rep(.5, length(all.rids)))
-unenriched.data     <- subset(adas.outcome.data, RID %in% keeps.rids)
-unenriched.data$RID <- factor(unenriched.data$RID)
+mci.gen.long     <- purrr::map2(mci.scen1.generic, all.data.list, PullLongData)
+mci.scen1.i.long <- purrr::map2(mci.scen1.i, all.data.list, PullLongData)
+mci.scen1.i.earlyage.long<- purrr::map2(mci.scen1.i.earlyage, all.data.list, PullLongData)
+mci.scen1.i.tplus.long<- purrr::map2(mci.scen1.i.tplus, all.data.list, PullLongData)
+mci.scen1.neur.long<- purrr::map2(mci.scen1.neur, all.data.list[c(2,4)], PullLongData)
 
-unenriched.totall1<- SampleSizeSimulation(sim.data = unenriched.data, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
-                                          fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100))
-data.mci1.totall11 <- SampleSizeSimulation(sim.data = data.mci1, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
-                                         fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100))
+ad.gen.long<- purrr::map2(ad.scen1.generic, all.data.list, PullLongData)
+ad.scen1.i.long<- purrr::map2(ad.scen1.i, all.data.list, PullLongData)
+ad.scen1.i.earlyage.long<- purrr::map2(ad.scen1.earlyage, all.data.list, PullLongData)
+ad.scen1.i.tplus.long<- purrr::map2(ad.scen1.tplus, all.data.list, PullLongData)
+ad.scen1.neur.long<- purrr::map2(ad.scen1.neur, all.data.list[c(2,4)], PullLongData)
+
+early.ad.gen.long<- purrr::map2(early.ad.scen1.generic, all.data.list, PullLongData)
+early.ad.scen1.i.long<- purrr::map2(early.ad.scen1.i, all.data.list, PullLongData)
+early.ad.scen1.i.earlyage.long<- purrr::map2(early.ad.scen1.earlyage, all.data.list, PullLongData)
+early.ad.scen1.i.tplus.long<- purrr::map2(early.ad.scen1.tplus, all.data.list, PullLongData)
+early.ad.scen1.neur.long<- purrr::map2(early.ad.scen1.neur, all.data.list[c(2,4)], PullLongData)
+
+
+
+
+if(source.script) { ########################
+
+
+#MCI fitting
+unenriched.mci.totall11.model<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                          fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.total11.model    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                         fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.earlyage.total11.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.tplus.total11.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.neuro.total11.model  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+
+unenriched.mci.cdrsb.model<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+mci.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+mci.scen1.neuro.cdrsb.model.1000  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+
+
+unenriched.mci.cdrsb.model<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+mci.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+unenriched.mci.mem.model<- SampleSizeSimulation(sim.data = mci.gen.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "ADNI_MEM~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.mem.model    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.earlyage.mem.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.tplus.mem.model  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                    fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.neuro.mem.model  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[2]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+
+
+unenriched.mci.ef.model<- SampleSizeSimulation(sim.data = mci.gen.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                fcompare_str = "ADNI_EF~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+mci.scen1.ef.model              <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+mci.scen1.earlyage.ef.model     <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+mci.scen1.tplus.ef.model        <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+mci.scen1.neuro.ef.model        <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[2]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+
+
+
+#AD fitting
+unenriched.ad.totall11.model<- SampleSizeSimulation(sim.data = ad.gen.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.total11.model    <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.earlyage.total11.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                         fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+} ####################################################
+ad.scen1.tplus.total11.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.neuro.total11.model  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+
+unenriched.ad.cdrsb.model<- SampleSizeSimulation(sim.data = ad.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+ad.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+ad.scen1.neuro.cdrsb.model.1000  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+
+
+unenriched.ad.cdrsb.model<- SampleSizeSimulation(sim.data = ad.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+ad.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+ad.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+unenriched.ad.mem.model<- SampleSizeSimulation(sim.data = ad.gen.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                fcompare_str = "ADNI_MEM~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+ad.scen1.mem.model    <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+ad.scen1.earlyage.mem.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+ad.scen1.tplus.mem.model  <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+ad.scen1.neuro.mem.model  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[2]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+
+
+unenriched.ad.ef.model<- SampleSizeSimulation(sim.data = ad.gen.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_EF~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+ad.scen1.ef.model              <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+ad.scen1.earlyage.ef.model     <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+ad.scen1.tplus.ef.model        <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+ad.scen1.neuro.ef.model        <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[2]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+
+# Early AD fitting
+unenriched.early.early.ad.totall11.model<- SampleSizeSimulation(sim.data = early.ad.gen.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+early.ad.scen1.total11.model    <- SampleSizeSimulation(sim.data = early.ad.scen1.i.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+early.ad.scen1.earlyage.total11.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.earlyage.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                         fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+early.ad.scen1.tplus.total11.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+early.ad.scen1.neuro.total11.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+
+unenriched.early.early.ad.cdrsb.model<- SampleSizeSimulation(sim.data = early.ad.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = early.ad.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+early.ad.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+early.ad.scen1.neuro.cdrsb.model.1000  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                         fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+
+
+unenriched.early.early.ad.cdrsb.model<- SampleSizeSimulation(sim.data = early.ad.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.cdrsb.model    <- SampleSizeSimulation(sim.data = early.ad.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.earlyage.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+early.ad.scen1.tplus.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+early.ad.scen1.neuro.cdrsb.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+unenriched.early.early.ad.mem.model<- SampleSizeSimulation(sim.data = early.ad.gen.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_MEM~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+early.ad.scen1.mem.model    <- SampleSizeSimulation(sim.data = early.ad.scen1.i.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                              fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+early.ad.scen1.earlyage.mem.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.earlyage.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+early.ad.scen1.tplus.mem.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.i.tplus.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+early.ad.scen1.neuro.mem.model  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[2]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+
+
+unenriched.early.early.ad.ef.model   <- SampleSizeSimulation(sim.data = early.ad.gen.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                              fcompare_str = "ADNI_EF~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+early.ad.scen1.ef.model              <- SampleSizeSimulation(sim.data = early.ad.scen1.i.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+early.ad.scen1.earlyage.ef.model     <- SampleSizeSimulation(sim.data = early.ad.scen1.i.earlyage.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+early.ad.scen1.tplus.ef.model        <- SampleSizeSimulation(sim.data = early.ad.scen1.i.tplus.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+early.ad.scen1.neuro.ef.model        <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[2]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+simrOptions(nsim=100)
+
+
+#if(source.script){
+### rerun everything with 500 simulations
+unenriched.mci.totall11.model100<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "TOTAL11~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.total11.model100    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.earlyage.total11.model100  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.tplus.total11.model100  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.neuro.total11.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+unenriched.mci.mmse.model100<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "MMSE~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.mmse.model100    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.earlyage.mmse.model100  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                             fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.tplus.mmse.model100  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+mci.scen1.neuro.mmse.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+unenriched.ad.mmse.model100<- SampleSizeSimulation(sim.data = ad.gen.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "MMSE~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.mmse.model100    <- SampleSizeSimulation(sim.data = ad.scen1.i.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.earlyage.mmse.model100  <- SampleSizeSimulation(sim.data = ad.scen1.i.earlyage.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.tplus.mmse.model100  <- SampleSizeSimulation(sim.data = ad.scen1.i.tplus.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+ad.scen1.neuro.mmse.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                       fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
+
+
+
+mmse.powerlines.mci <- CombineSimPlots(list( "All MCI A+" = unenriched.mci.mmse.model100,
+                                         "MCI A+ CDR >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.mmse.model100,
+                                         "Early-Age" = mci.scen1.earlyage.mmse.model100,
+                                         "Tau-Pos" = mci.scen1.tplus.mmse.model100,
+                                         "No Copathologies"= mci.scen1.neuro.mmse.model100), limits = seq(100, 1000, by=100))
+
+
+mmse.powerlines.ad <- CombineSimPlots(list( "All MCI A+" = unenriched.ad.mmse.model100,
+                                             "MCI A+ CDR >= 0.5 \n MMSE 24-30 Age 50-85" = ad.scen1.mmse.model100,
+                                             "Early-Age" = ad.scen1.earlyage.mmse.model100,
+                                             "Tau-Pos" = ad.scen1.tplus.mmse.model100,
+                                             "No Copathologies"= ad.scen1.neuro.mmse.model100), limits = seq(100, 1000, by=100))
+mmse.powerlines.mci$plot
+mmse.powerlines.ad$plot
+
+
+
+nlevels(ad.gen.long[[1]]$RID)
+
+
+
+unenriched.mci.cdrsb.model500<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.cdrsb.model500    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                 fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.earlyage.cdrsb.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.earlyage500.cdrsb.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                           fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+mci.scen1.tplus.cdrsb.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+mci.scen1.neuro.cdrsb.model500  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+mci.scen1.neuro.cdrsb.model500.1000  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                          fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDRSB")
+
+
+
+unenriched.mci.mpacc.model500<- SampleSizeSimulation(sim.data = mci.gen.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "mPACCtrailsB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+mci.scen1.mpacc.model500    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                    fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+mci.scen1.earlyage.mpacc.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                           fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+mci.scen1.earlyage500.mpacc.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                              fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+
+mci.scen1.tplus.mpacc.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+mci.scen1.neuro.mpacc.model500  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                        fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
+
+
+
+
+
+unenriched.mci.mem.model500      <- SampleSizeSimulation(sim.data = mci.gen.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                fcompare_str = "ADNI_MEM~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.mem.model500           <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.earlyage.mem.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                      fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.tplus.mem.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[3]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+mci.scen1.neuro.mem.model500  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[2]], formula = "ADNI_MEM ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                   fcompare_str = "ADNI_MEM~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_MEM")
+
+
+
+unenriched.mci.ef.model500<- SampleSizeSimulation(sim.data = mci.gen.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                               fcompare_str = "ADNI_EF~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+mci.scen1.ef.model500    <- SampleSizeSimulation(sim.data = mci.scen1.i.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                              fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+mci.scen1.earlyage.ef.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.earlyage.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                     fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+mci.scen1.tplus.ef.model500  <- SampleSizeSimulation(sim.data = mci.scen1.i.tplus.long[[3]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+mci.scen1.neuro.ef.model500  <- SampleSizeSimulation(sim.data = mci.scen1.neur.long[[2]], formula = "ADNI_EF ~ treat + new_time+ new_time*treat + (1|RID)",
+                                                  fcompare_str = "ADNI_EF~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADNI_EF")
+
+
+
+
+total11.powerlines<-CombineSimPlots(list("All MCI A+" = unenriched.mci.totall11.model500,
+                                     "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.total11.model500,
+                                     "Early-Age" = mci.scen1.earlyage.total11.model500,
+                                     "Tau-Pos" = mci.scen1.tplus.total11.model500,
+                                     "No Copathologies"= mci.scen1.neuro.total11.model500), limits = seq(100, 1000, by=100))
+
+cdr.powerlines <-CombineSimPlots(list("All MCI A+" = unenriched.mci.cdrsb.model500,
+                                "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.cdrsb.model500,
+                                "Early-Age" = mci.scen1.earlyage.cdrsb.model500,
+                                "Tau-Pos" = mci.scen1.tplus.cdrsb.model500,
+                                "No Copathologies"= mci.scen1.neuro.cdrsb.model500), limits = seq(100, 1000, by=100))
+
+mpacc.powerlines <- CombineSimPlots(list("All MCI A+" = unenriched.mci.mpacc.model500,
+                                         "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.mpacc.model500,
+                                         "Early-Age" = mci.scen1.earlyage.mpacc.model500,
+                                         "Tau-Pos" = mci.scen1.tplus.mpacc.model500,
+                                         "No Copathologies"= mci.scen1.neuro.mpacc.model500), limits = seq(100, 1000, by=100))
+
+mem.powerlines  <- CombineSimPlots(list("All MCI A+" = unenriched.mci.mem.model500,
+                                     "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.mem.model500,
+                                     "Early-Age" = mci.scen1.earlyage.mpacc.model500,
+                                     "Tau-Pos" = mci.scen1.tplus.mem.model500,
+                                     "No Copathologies"= mci.scen1.neuro.mem.model500), limits = seq(100, 1000, by=100))
+
+ef.powerlines  <- CombineSimPlots(list( "All MCI A+" = unenriched.mci.ef.model500,
+                                        "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.ef.model500,
+                                        "Early-Age" = mci.scen1.earlyage.ef.model500,
+                                        "Tau-Pos" = mci.scen1.tplus.ef.model500,
+                                        "No Copathologies"= mci.scen1.neuro.ef.model500), limits = seq(100, 1000, by=100))
+
+
+
+
+save_list <- list("total11" = list(total11.powerlines,
+                                   list("All MCI A+" = unenriched.mci.totall11.model500,
+                                        "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.total11.model500,
+                                        "Early-Age" = mci.scen1.earlyage.total11.model500,
+                                        "Tau-Pos" = mci.scen1.tplus.total11.model500,
+                                        "No Copathologies"= mci.scen1.neuro.total11.model500)),
+                 "cdr"=list(cdr.powerlines,
+                            list("All MCI A+" = unenriched.mci.cdrsb.model500,
+                                 "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.cdrsb.model500,
+                                 "Early-Age" = mci.scen1.earlyage.cdrsb.model500,
+                                 "Tau-Pos" = mci.scen1.tplus.cdrsb.model500,
+                                 "No Copathologies"= mci.scen1.neuro.cdrsb.model500)),
+                 "mpacc" = list(mpacc.powerlines, list("All MCI A+" = unenriched.mci.mpacc.model500,
+                                                       "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.mpacc.model500,
+                                                       "Early-Age" = mci.scen1.earlyage.mpacc.model500,
+                                                       "Tau-Pos" = mci.scen1.tplus.mpacc.model500,
+                                                       "No Copathologies"= mci.scen1.neuro.mpacc.model500)),
+                 "mem" = list(mem.powerlines, list("All MCI A+" = unenriched.mci.mem.model500,
+                                                   "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.mem.model500,
+                                                   "Early-Age" = mci.scen1.earlyage.mpacc.model500,
+                                                   "Tau-Pos" = mci.scen1.tplus.mem.model500,
+                                                   "No Copathologies"= mci.scen1.neuro.mem.model500)),
+                 "ef" = list(ef.powerlines, list( "All MCI A+" = unenriched.mci.ef.model500,
+                                                  "MCI A+ CDRSB >= 0.5 \n MMSE 24-30 Age 50-85" = mci.scen1.ef.model500,
+                                                  "Early-Age" = mci.scen1.earlyage.ef.model500,
+                                                  "Tau-Pos" = mci.scen1.tplus.ef.model500,
+                                                  "No Copathologies"= mci.scen1.neuro.ef.model500)))
+
+
+
+saveRDS(save_list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/powerlines.rds")
+
+
+
+rm(check)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 test.out <-  SampleSizeSimulation(sim.data = data.mci1, formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
                                     fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-COG11")
 
@@ -350,5 +927,5 @@ ad2.analyzed <- PlotObsData(data.ad2,formula.fixed = "TOTAL11 ~ new_time", ylab=
 ad2.analyzed
 ad2.analyzed.cdr <- PlotObsData(data.ad2,formula.fixed = "CDRSB ~ new_time", ylab= "CDRSB")
 ad2.analyzed.cdr
-
+#}
 
