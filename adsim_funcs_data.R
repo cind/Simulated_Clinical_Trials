@@ -74,7 +74,7 @@ SetNeuroData <- function(data) {
   data$CAA_path      <- factor(data$CAA_path)
   return(data)
 }
-
+#
 
 
 
@@ -227,6 +227,46 @@ SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, b
                       "disease_progression_plot" = plot.disease.contr)
   return(return.list)
 }
+
+
+
+GroupDiseaseTraj <- function(sim.list, yaxislab_dpm) {
+  firstelement <- sim.list[[1]]
+  model<- firstelement$model
+  names1 <- c(names(sim.list)[1])
+  plot.data  <- firstelement$disease_progression_plot$data
+  total.rids <- nlevels(factor(plot.data$RID))
+  firstfail  <- paste(total.rids, " Subjects ","(Reference Group) \n", sep="")
+  names1 <- paste(names1, firstfail, sep="")
+  plot.data$group <- rep(names1, nrow(plot.data))
+  plot.data$predicted <- predict(model, plot.data)
+  screen.fail <- list()
+  for(i in 2:length(sim.list)) {
+   sublist <- sim.list[[i]]
+    nextframe <- sublist$disease_progression_plot$data
+    nextframe.model <- sublist$model
+    groupname <- names(sim.list)[i]
+    nrids <- nlevels(factor(nextframe$RID))
+    failrate <- paste(nrids, " Subjects ", "(", 
+                      round(((total.rids - nrids) / total.rids) * 100, 2), 
+                      "% failure rate) \n", sep="")
+    groupname <- paste(groupname, failrate, sep="")
+    nextframe$group <- rep(groupname, nrow(nextframe))
+    nextframe$predicted <- predict(nextframe.model, nextframe)
+    plot.data <- rbind.fill(plot.data, nextframe)
+    screen.fail[[i]] <- paste(nrids, " Subjects ", "(", round(((total.rids - nrids) / total.rids) * 100, 2), "% failure rate)", sep="")
+    
+  }
+  names(screen.fail) <- names(sim.list)
+  plot.data$Treatment <- plot.data$treat
+  plot.data$Enrichment <- plot.data$group
+  
+  gplot <- ggplot(plot.data, aes(y=predicted, x=new_time, colour=Enrichment, linetype = Treatment)) + geom_smooth(method = "lm", aes(fill=Enrichment), alpha=.1) 
+  gplot <- gplot  + xlab("Time (Weeks)") + ylab(yaxislab_dpm)
+  return(list("plot"=gplot, "screenfail"=screen.fail))
+}
+
+
 
 
 

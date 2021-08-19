@@ -185,7 +185,6 @@ adas_merge_demog$M_vis <- as.numeric(adas_merge_demog$M_vis)
 adas_merge_demog["M_vis"][which(adas_merge_demog$VISCODE=="bl"), ] <- 0
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
 adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
-ggplot(data = adas_merge_demog, aes(x=ABETA)) + geom_histogram()
 
 
 
@@ -359,6 +358,35 @@ image.neuropath.outcome <- QuickAdjust(image.neuropath.outcome)
 all.data.list <- list(adas.outcome.data, adas.neuropath.outcome,
                       mem.outcome.data, mem.neuropath.outcome)
 
+adas.outcome.data$ptau_pos <- factor(adas.outcome.data$ptau_pos)
+adas.outcome.data$PTGENDER <- factor(adas.outcome.data$PTGENDER)
+adas.outcome.data$DX <- factor(adas.outcome.data$DX)
+adas.outcome.data$AmyPos <- factor(adas.outcome.data$AmyPos)
+adas.outcome.data$CDGLOBAL_bl <- factor(adas.outcome.data$CDGLOBAL_bl)
+adas.outcome.bl <- subset(adas.outcome.data, new_time==0)
+adas.desc.table <- table1(adas.outcome.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB")], splitby = ~DX)$Table1
+
+adas.neuropath.outcome$ptau_pos    <- factor(adas.neuropath.outcome$ptau_pos)
+adas.neuropath.outcome$PTGENDER    <- factor(adas.neuropath.outcome$PTGENDER)
+adas.neuropath.outcome$DX          <- factor(adas.neuropath.outcome$DX)
+adas.neuropath.outcome$AmyPos      <- factor(adas.neuropath.outcome$AmyPos)
+adas.neuropath.outcome$CDGLOBAL_bl <- factor(adas.neuropath.outcome$CDGLOBAL_bl)
+adas.neuropath.outcome$fulllewy  <- factor(adas.neuropath.outcome$fulllewy)
+adas.neuropath.outcome$fulltdp43 <- factor(adas.neuropath.outcome$fulltdp43)
+adas.neuropath.outcome$fullcaa   <- factor(adas.neuropath.outcome$fullcaa)
+adas.neuropath.outcome$fulllewy  <- factor(adas.neuropath.outcome$fulllewy)
+adas.neuropath.outcome$fulltdp43 <- factor(adas.neuropath.outcome$fulltdp43)
+adas.neuropath.outcome$fullcaa   <- factor(adas.neuropath.outcome$fullcaa)
+
+save.all.list <- list()
+
+
+adas.outcome.neurpath.bl <- subset(adas.neuropath.outcome, new_time==0)
+adas.desc.table.neuro <- table1(adas.outcome.neurpath.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB", "fullcaa", "fulltdp43", "fulllewy")], splitby = ~DX)$Table1
+
+save.all.list[["desc.tables"]] <- list("fulloutcomestable"= adas.desc.table,
+                                       "outcomeswithneuropath" = adas.desc.table.neuro)
+
 
 #### model fitting
 
@@ -381,6 +409,37 @@ early.ad.scen1.earlyage  <- lapply(all.data.list, function(x)  subset(x,  new_ti
 early.ad.scen1.tplus     <- lapply(all.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & ptau_pos_bl==1))
 early.ad.scen1.neur     <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0))
 early.ad.scen1.neur.tplus      <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))##############
+
+
+g1.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \n"
+g2.mci <- "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n"
+g3.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 Tau+ (PTAU)\n"
+g4.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
+
+g1.ad <- "AD A+ CDR >= 1 \nAge 55-85  MMSE 20-28 \n"
+g2.ad <- "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n"
+g3.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 Tau+ (PTAU)\n"
+g4.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
+
+g1.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30\n"
+g2.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"
+g3.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 Tau+ (PTAU)\n"
+g4.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -689,6 +748,24 @@ mci.scen1.neuro.total11.model100  <- SampleSizeSimulation(sim.data = mci.scen1.n
                                                        fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
 
 
+
+mci.total11.list <- list(unenriched.mci.total11.model100,
+                        mci.scen1.total11.model100,
+                        mci.scen1.earlyage.total11.model100,
+                        mci.scen1.tplus.total11.model100,
+                        mci.scen1.neuro.total11.model100)
+
+
+names(mci.total11.list) <- c(g1.mci, g2.mci, g3.mci, g4.mci, g5.mci)
+total11.powerlines.mci<-CombineSimPlots(mci.total11.list, limits = seq(100, 1000, by=100))
+total11.mci.dtm <- GroupDiseaseTraj(mci.total11.list, yaxislab_dpm = "ADAS-11")
+
+save.all.list[["mci.total11"]] <- list("powerlines" = total11.powerlines.mci,
+                                     "dpm"        = total11.mci.dtm)
+
+
+
+
 unenriched.mci.cdr.model100<- SampleSizeSimulation(sim.data = mci.scen1.generic.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                     fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 mci.scen1.cdr.model100    <- SampleSizeSimulation(sim.data = mci.scen1.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -700,6 +777,26 @@ mci.scen1.tplus.cdr.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.
 mci.scen1.neuro.cdr.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                        fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 
+
+
+mci.cdr.list <- list(unenriched.mci.cdr.model100,
+                         mci.scen1.cdr.model100,
+                         mci.scen1.earlyage.cdr.model100,
+                         mci.scen1.tplus.cdr.model100,
+                         mci.scen1.neuro.cdr.model100)
+
+
+names(mci.cdr.list) <- c(g1.mci, g2.mci, g3.mci, g4.mci, g5.mci)
+cdr.powerlines.mci<-CombineSimPlots(mci.cdr.list, limits = seq(100, 1000, by=100))
+cdr.mci.dtm <- GroupDiseaseTraj(mci.cdr.list, yaxislab_dpm = "CDR-SOB")
+
+save.all.list[["mci.cdr"]] <- list("powerlines" = cdr.powerlines.mci,
+                                    "dpm"        = cdr.mci.dtm)
+
+
+
+
+
 unenriched.mci.mmse.model100<- SampleSizeSimulation(sim.data = mci.scen1.generic.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
                                                         fcompare_str = "MMSE~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
 mci.scen1.mmse.model100    <- SampleSizeSimulation(sim.data = mci.scen1.earlyage.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -710,6 +807,24 @@ mci.scen1.tplus.mmse.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur
                                                           fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
 mci.scen1.neuro.mmse.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.tplus.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
                                                           fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
+
+mci.mmse.list <- list(unenriched.mci.mmse.model100,
+                     mci.scen1.mmse.model100,
+                     mci.scen1.earlyage.mmse.model100,
+                     mci.scen1.tplus.mmse.model100,
+                     mci.scen1.neuro.mmse.model100)
+
+
+names(mci.mmse.list) <- c(g1.mci, g2.mci, g3.mci, g4.mci, g5.mci)
+mmse.powerlines.mci<-CombineSimPlots(mci.mmse.list, limits = seq(100, 1000, by=100))
+mmse.mci.dtm <- GroupDiseaseTraj(mci.mmse.list, yaxislab_dpm = "MMSE")
+
+save.all.list[["mci.mmse"]] <- list("powerlines" = mmse.powerlines.mci,
+                                   "dpm"        = mmse.mci.dtm)
+
+
+
+
 
 
 unenriched.mci.mpacc.model100<- SampleSizeSimulation(sim.data = mci.scen1.generic.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -723,6 +838,17 @@ mci.scen1.tplus.mpacc.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neu
 mci.scen1.neuro.mpacc.model100  <- SampleSizeSimulation(sim.data = mci.scen1.neur.tplus.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                        fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
 
+mci.mpacc.list <- list(unenriched.mci.mpacc.model100,
+                      mci.scen1.mpacc.model100,
+                      mci.scen1.earlyage.mpacc.model100,
+                      mci.scen1.tplus.mpacc.model100,
+                      mci.scen1.neuro.mpacc.model100)
+
+names(mci.mpacc.list) <- c(g1.mci, g2.mci, g3.mci, g4.mci, g5.mci)
+mpacc.powerlines.mci      <-CombineSimPlots(mci.mpacc.list, limits = seq(100, 1000, by=100))
+mpacc.mci.dtm         <- GroupDiseaseTraj(mci.mpacc.list, yaxislab_dpm = "mPACCtrailsB")
+save.all.list[["mci.mpacc"]] <- list("powerlines" = mpacc.powerlines.mci,
+                                   "dpm"        = mpacc.mci.dtm)
 
 
 
@@ -743,6 +869,25 @@ ad.scen1.tplus.total11.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neu
 ad.scen1.neuro.total11.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
                                                           fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
 
+
+
+ad.total11.list <- list(unenriched.ad.total11.model100,
+                         ad.scen1.total11.model100,
+                         ad.scen1.earlyage.total11.model100,
+                         ad.scen1.tplus.total11.model100,
+                         ad.scen1.neuro.total11.model100)
+
+
+names(ad.total11.list) <- c(g1.ad, g2.ad, g3.ad, g4.ad, g5.ad)
+total11.powerlines.ad<-CombineSimPlots(ad.total11.list, limits = seq(100, 1000, by=100))
+total11.ad.dtm <- GroupDiseaseTraj(ad.total11.list, yaxislab_dpm = "ADAS-11")
+
+save.all.list[["ad.total11"]] <- list("powerlines" = total11.powerlines.ad,
+                                     "dpm"        = total11.ad.dtm)
+
+
+
+
 unenriched.ad.cdr.model100<- SampleSizeSimulation(sim.data = ad.scen1.generic.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                    fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 ad.scen1.cdr.model100    <- SampleSizeSimulation(sim.data = ad.scen1.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -753,6 +898,28 @@ ad.scen1.tplus.cdr.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.lo
                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 ad.scen1.neuro.cdr.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                       fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
+
+
+
+
+
+ad.cdr.list <- list(unenriched.ad.cdr.model100,
+                        ad.scen1.cdr.model100,
+                        ad.scen1.earlyage.cdr.model100,
+                        ad.scen1.tplus.cdr.model100,
+                        ad.scen1.neuro.cdr.model100)
+
+
+names(ad.cdr.list) <- c(g1.ad, g2.ad, g3.ad, g4.ad, g5.ad)
+cdr.powerlines.ad<-CombineSimPlots(ad.cdr.list, limits = seq(100, 1000, by=100))
+cdr.ad.dtm <- GroupDiseaseTraj(ad.cdr.list, yaxislab_dpm = "CDR-SOB")
+save.all.list[["ad.cdr"]] <- list("powerlines" = cdr.powerlines.ad,
+                                      "dpm"        = cdr.ad.dtm)
+
+
+
+
+
 
 
 unenriched.ad.mmse.model100<- SampleSizeSimulation(sim.data = ad.scen1.generic.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -768,6 +935,27 @@ ad.scen1.neuro.mmse.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.t
 
 
 
+
+ad.mmse.list <- list(unenriched.ad.mmse.model100,
+                    ad.scen1.mmse.model100,
+                    ad.scen1.earlyage.mmse.model100,
+                    ad.scen1.tplus.mmse.model100,
+                    ad.scen1.neuro.mmse.model100)
+
+
+names(ad.mmse.list) <- c(g1.ad, g2.ad, g3.ad, g4.ad, g5.ad)
+mmse.powerlines.ad<-CombineSimPlots(ad.mmse.list, limits = seq(100, 1000, by=100))
+mmse.ad.dtm <- GroupDiseaseTraj(ad.mmse.list, yaxislab_dpm = "MMSE")
+save.all.list[["ad.mmse"]] <- list("powerlines" = mmse.powerlines.ad,
+                                  "dpm"        = mmse.ad.dtm)
+
+
+
+
+
+
+
+
 unenriched.ad.mpacc.model100<- SampleSizeSimulation(sim.data = ad.scen1.generic.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                      fcompare_str = "mPACCtrailsB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
 ad.scen1.mpacc.model100    <- SampleSizeSimulation(sim.data = ad.scen1.earlyage.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -780,6 +968,16 @@ ad.scen1.neuro.mpacc.model100  <- SampleSizeSimulation(sim.data = ad.scen1.neur.
                                                         fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
 
 
+ad.mpacc.list <- list(unenriched.ad.mpacc.model100,
+                     ad.scen1.mpacc.model100,
+                     ad.scen1.earlyage.mpacc.model100,
+                     ad.scen1.tplus.mpacc.model100,
+                     ad.scen1.neuro.mpacc.model100)
+names(ad.mpacc.list) <- c(g1.ad, g2.ad, g3.ad, g4.ad, g5.ad)
+mpacc.powerlines.ad<-CombineSimPlots(ad.mpacc.list, limits = seq(100, 1000, by=100))
+mpacc.ad.dtm <- GroupDiseaseTraj(ad.mpacc.list, yaxislab_dpm = "mPACCtrailsB")
+save.all.list[["ad.mpacc"]] <- list("powerlines" = mpacc.powerlines.ad,
+                                   "dpm"        = mpacc.ad.dtm)
 
 
 
@@ -794,6 +992,28 @@ early.ad.scen1.tplus.total11.model100  <- SampleSizeSimulation(sim.data = early.
 early.ad.scen1.neuro.total11.model100  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.tplus.long[[1]], formula = "TOTAL11 ~ treat + new_time+ new_time*treat + (1|RID)",
                                                          fcompare_str = "TOTAL11~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "ADAS-11")
 
+
+early.ad.total11.list <- list(unenriched.early.ad.total11.model100,
+                              early.ad.scen1.total11.model100,
+                              early.ad.scen1.earlyage.total11.model100,
+                              early.ad.scen1.tplus.total11.model100,
+                              early.ad.scen1.neuro.total11.model100)
+
+
+names(early.ad.total11.list) <- c(g1.early.ad, g2.early.ad, g3.early.ad, g4.early.ad, g5.early.ad)
+total11.powerlines.early.ad  <- CombineSimPlots(early.ad.total11.list, limits = seq(100, 1000, by=100))
+early.ad.total11.dtm <- GroupDiseaseTraj(early.ad.total11.list, yaxislab_dpm = "ADAS-11")
+save.all.list[["early.ad.total11"]] <- list("powerlines" = total11.powerlines.early.ad,
+                                         "dpm"        = early.ad.total11.dtm)
+
+
+
+
+
+
+
+
+
 unenriched.early.ad.cdr.model100<- SampleSizeSimulation(sim.data = early.ad.scen1.generic.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                   fcompare_str = "CDRSB~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 early.ad.scen1.cdr.model100    <- SampleSizeSimulation(sim.data = early.ad.scen1.earlyage.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -803,7 +1023,23 @@ early.ad.scen1.earlyage.cdr.model100  <- SampleSizeSimulation(sim.data = early.a
 early.ad.scen1.tplus.cdr.model100  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
                                                      fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
 early.ad.scen1.neuro.cdr.model100  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.tplus.long[[1]], formula = "CDRSB ~ treat + new_time+ new_time*treat + (1|RID)",
-                                                     fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
+                                                                                                           fcompare_str = "CDRSB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "CDR-SOB")
+
+
+early.ad.cdr.list <- list(unenriched.early.ad.cdr.model100,
+                              early.ad.scen1.cdr.model100,
+                              early.ad.scen1.earlyage.cdr.model100,
+                              early.ad.scen1.tplus.cdr.model100,
+                              early.ad.scen1.neuro.cdr.model100)
+
+
+names(early.ad.cdr.list) <- c(g1.early.ad, g2.early.ad, g3.early.ad, g4.early.ad, g5.early.ad)
+cdr.powerlines.early.ad  <- CombineSimPlots(early.ad.cdr.list, limits = seq(100, 1000, by=100))
+early.ad.cdr.dtm <- GroupDiseaseTraj(early.ad.cdr.list, yaxislab_dpm = "CDR-SOB")
+save.all.list[["early.ad.cdr"]] <- list("powerlines" = cdr.powerlines.early.ad,
+                                            "dpm"        = early.ad.cdr.dtm)
+
+
 
 unenriched.early.ad.mmse.model100<- SampleSizeSimulation(sim.data = early.ad.scen1.generic.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
                                                      fcompare_str = "MMSE~new_time", breaks = seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
@@ -815,6 +1051,24 @@ early.ad.scen1.tplus.mmse.model100  <- SampleSizeSimulation(sim.data = early.ad.
                                                         fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
 early.ad.scen1.neuro.mmse.model100  <- SampleSizeSimulation(sim.data = early.ad.scen1.neur.tplus.long[[1]], formula = "MMSE ~ treat + new_time+ new_time*treat + (1|RID)",
                                                         fcompare_str = "MMSE~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "MMSE")
+
+
+
+early.ad.mmse.list <- list(unenriched.early.ad.mmse.model100,
+                          early.ad.scen1.mmse.model100,
+                          early.ad.scen1.earlyage.mmse.model100,
+                          early.ad.scen1.tplus.mmse.model100,
+                          early.ad.scen1.neuro.mmse.model100)
+
+
+names(early.ad.mmse.list) <- c(g1.early.ad, g2.early.ad, g3.early.ad, g4.early.ad, g5.early.ad)
+mmse.powerlines.early.ad<-CombineSimPlots(early.ad.mmse.list, limits = seq(100, 1000, by=100))
+early.ad.mmse.dtm <- GroupDiseaseTraj(early.ad.mmse.list, yaxislab_dpm = "MMSE")
+save.all.list[["early.ad.mmse"]] <- list("powerlines" = mmse.powerlines.early.ad,
+                                        "dpm"        = early.ad.mmse.dtm)
+
+
+
 
 
 unenriched.early.ad.mpacc.model100<- SampleSizeSimulation(sim.data = early.ad.scen1.generic.long[[1]], formula = "mPACCtrailsB ~ treat + new_time+ new_time*treat + (1|RID)",
@@ -829,12 +1083,22 @@ early.ad.scen1.neuro.mpacc.model100  <- SampleSizeSimulation(sim.data = early.ad
                                                        fcompare_str = "mPACCtrailsB~new_time", breaks =  seq(100, 1000, by=100), yaxislab_dpm = "mPACCtrailsB")
 
 
+early.ad.mpacc.list <- list(unenriched.early.ad.mpacc.model100,
+                           early.ad.scen1.mpacc.model100,
+                           early.ad.scen1.earlyage.mpacc.model100,
+                           early.ad.scen1.tplus.mpacc.model100,
+                           early.ad.scen1.neuro.mpacc.model100)
+
+
+names(early.ad.mpacc.list)  <- c(g1.early.ad, g2.early.ad, g3.early.ad, g4.early.ad, g5.early.ad)
+mpacc.powerlines.early.ad   <- CombineSimPlots(early.ad.mpacc.list, limits = seq(100, 1000, by=100))
+early.ad.mpacc.dtm <- GroupDiseaseTraj(early.ad.mpacc.list, yaxislab_dpm = "mPACCtrailsB")
+save.all.list[["early.ad.mpacc"]] <- list("powerlines" = mpacc.powerlines.early.ad,
+                                        "dpm"        = early.ad.mpacc.dtm)
 
 
 
-
-
-
+saveRDS(save.all.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/power_curves_dpm.rds")
 
 
 
