@@ -26,9 +26,14 @@ TimeSinceBaseline <- function(data, timecol) {
   return.list <- list()
   for(i in 1:length(subjlist)) {
     subj <- subjlist[[i]]
-    min.time <- min(subj[[timecol]])
-    subj$new_time <- subj[[timecol]] - min.time
-    return.list[[i]] <- subj
+    if(!all(is.na(subj[[timecol]]))) {
+      val.rows   <- which(!is.na(subj[[timecol]]))
+      min.index <- min(val.rows)
+      time.min  <- min(subj[timecol][val.rows,])
+      subj$new_time <- subj[[timecol]] - time.min
+      subj <- subj[min.index:nrow(subj), ]
+      return.list[[i]] <- subj
+    } 
   }
   return.list <- do.call(rbind, return.list)
   return(return.list)
@@ -58,43 +63,62 @@ TimeSinceBaselineValidAmy <- function(data, timecol) {
 
 SetNeuroData <- function(data) {
   data$TAU_pos_path <- data$Amy_pos_path <- data$TDP_pos_path <- data$Lewy_pos_path <- data$CAA_path <- rep(NA, nrow(data))
-  data["TAU_pos_path"][which(data$NPBRAAK >= 3 & data$NPBRAAK <= 7 ), ] <- 1
-  data["TAU_pos_path"][which(data$NPBRAAK < 3 | data$NPBRAAK > 7 ), ] <- 0
-  data["Amy_pos_path"][which(data$NPNEUR == 2 | data$NPNEUR == 3 ), ] <- 1
-  data["Amy_pos_path"][which(data$NPNEUR == 0 | data$NPNEUR == 1 ), ] <- 0
-  data["TDP_pos_path"][which(complete.cases(data[,c("NPTDPA","NPTDPB","NPTDPC","NPTDPD","NPTDPE")])),]  <- 0
-  data["TDP_pos_path"][which(data$NPTDPA == 1 | data$NPTDPB == 1 | data$NPTDPC == 1 | data$NPTDPD == 1 | data$NPTDPE == 1), ] <- 1
+  data["TAU_pos_path"][which(data$NPBRAAK %in% c(3:7)), ] <- 1
+  data["TAU_pos_path"][which(data$NPBRAAK %in% c(1,2)), ] <- 0
+  data["TAU_pos_path"][which(data$NPBRAAK %in% c(8,9)), ] <- NA
+  
+  data["Amy_pos_path"][which(data$NPNEUR  %in% c(2,3)), ] <- 1
+  data["Amy_pos_path"][which(data$NPNEUR  %in% c(0,1)), ] <- 0
+  data["Amy_pos_path"][which(data$NPNEUR  %in% c(8,9)), ] <- NA
+  
+  data["TDP_pos_path"][which(complete.cases(data[,c("NPTDPA","NPTDPB","NPTDPC","NPTDPD","NPTDPE")])),]     <- 0
+  data["TDP_pos_path"][which(data$NPTDPB == 1 | data$NPTDPC == 1 | data$NPTDPD == 1 | data$NPTDPE == 1), ] <- 1
   data["Lewy_pos_path"][which(data$NPLBOD == 0), ] <- 0
-  data["Lewy_pos_path"][which(data$NPLBOD != 0), ] <- 1
-  data["CAA_path"][which(data$NPAMY >= 2 ), ]      <- 1
-  data["CAA_path"][which(data$NPAMY < 2), ]        <- 0
-  data$Amy_pos_path  <- factor(data$Amy_pos_path)
-  data$TDP_pos_path  <- factor(data$TDP_pos_path)
-  data$Lewy_pos_path <- factor(data$Lewy_pos_path)
-  data$CAA_path      <- factor(data$CAA_path)
+  data["Lewy_pos_path"][which(data$NPLBOD %in% c(1,2,3,4,5)), ]  <- 1
+  data["Lewy_pos_path"][which(data$NPLBOD %in% c(8,9)), ]        <- NA
+  data["CAA_path"][which(!is.na(data$NPAMY)), ]      <- 0
+  data["CAA_path"][which(data$NPAMY %in% c(2,3)),]   <- 1
+  for(i in 1:nrow(data)) {
+    if(!is.na(data["TDP_pos_path"][i,])) {
+      data["fulltdp43"][i,] <- data["TDP_pos_path"][i,]
+    } else if(!is.na(data["TDP43"][i,])) {
+      data["fulltdp43"][i,] <- data["TDP43"][i,]
+    }
+    
+    if(!is.na(data["Lewy_pos_path"][i,])) {
+      data["fulllewy"][i,] <- data["Lewy_pos_path"][i,]
+    } else if(!is.na(data["LEWY"][i,])) {
+      data["fulllewy"][i,] <- data["LEWY"][i,]
+    }
+    
+    if(!is.na(data["CAA_path"][i,])) {
+      data["fullcaa"][i,] <- data["CAA_path"][i,]
+    } else if(!is.na(data["CAA"][i,])) {
+      data["fullcaa"][i,] <- data["CAA"][i,]
+    }
+  }
   return(data)
 }
-#
 
 
 
-CreateBaselineVar <- function(data, column.name, timecol) {
-  splitsubj <- split(data, data$RID)
+CreateBaselineVar <- function(data, timecol, baselinecol) {
+  data_split <- split(data, data$RID)
+  newname <- paste(baselinecol, "_bl", sep="")
   comb.list <- list()
-  for(i in 1:length(splitsubj)) {
-    bline.name <- paste(column.name, "_bl", sep="")
-    subj <- splitsubj[[i]]
-    rows <- nrow(subj)
-    bline.row <- which.min(subj[[timecol]])
-    bline.val <- subj[column.name][bline.row,]
-    bline.vec <- rep(bline.val, rows)
-    subj[bline.name] <- bline.vec
+  for(i in 1:length(data_split)) {
+    subj <- data_split[[i]]
+    subj[newname] <- NA
+    if(!all(is.na(subj[[baselinecol]]))) {
+      val <- subj[baselinecol][min(which(!is.na(subj[[baselinecol]]))),]
+      subj[newname][min(which(!is.na(subj[[baselinecol]]))): nrow(subj),] <- rep(val, 
+                                                                                 length(min(which(!is.na(subj[[baselinecol]]))): nrow(subj)))
+    }
     comb.list[[i]] <- subj
   }
-  comb.list <- do.call(bind_rows, comb.list)
+  comb.list <- do.call(rbind, comb.list)
   return(comb.list)
 }
-
 
 SampleJointDistribution <- function(data, sampling.list, n) {
     data.list    <- list()
@@ -180,30 +204,51 @@ PlotObsData <- function(data, formula.fixed, ylab) {
 }
 
 
-SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, breaks, yaxislab_dpm) {
-  all.rids <- levels(sim.data[["RID"]])
-  nrids <- nlevels(sim.data[["RID"]])
-  n.sample <- round(nrids/2)
+SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, breaks, yaxislab_dpm, ptau=NULL) {
+  if(!is.null(ptau)) {
+    missing.vals <- unique(sim.data["RID"][which(is.na(sim.data$PTAU_bl)),])
+    sim.data <- subset(sim.data, RID %notin% missing.vals)
+    sim.data$RID <- factor(sim.data$RID)
+    rownames(sim.data) <- 1:nrow(sim.data)
+  }
+  all.rids   <- levels(sim.data[["RID"]])
+  nrids      <- nlevels(sim.data[["RID"]])
+  n.sample   <- round(nrids/2)
   treat.rids <- sample(all.rids, n.sample, prob = rep(.5, length(all.rids)), replace = FALSE)
-  base.rids <- subset(all.rids, all.rids %notin% treat.rids)
+  base.rids  <- subset(all.rids, all.rids %notin% treat.rids)
   sim.data$treat <- rep(NA, nrow(sim.data))
-  treat.rows <- which(sim.data$RID %in% treat.rids)
-  base.rows <- which(sim.data$RID %in% base.rids)
+  treat.rows     <- which(sim.data$RID %in% treat.rids)
+  base.rows      <- which(sim.data$RID %in% base.rids)
   sim.data["treat"][treat.rows,] <- 1
-  sim.data["treat"][base.rows,] <- 0
+  sim.data["treat"][base.rows,]  <- 0
   sim.data$treat <- factor(sim.data$treat)
-  sim.model <- lmer(as.formula(formula), data = sim.data)
-  #sim.model.large <- sim.model
-  #fixef(sim.model.large)["treat1"] <- 0
-  #treat.ef <- fixef(sim.model.large)["new_time"] * efficacy
-  #treat.ef <- treat.ef * -1
-  #fixef(sim.model.large)["treat1:new_time"] <- treat.ef
+  if(!is.null(ptau)) {
+    sim.model       <- lmerTest::lmer(as.formula(ptau), data = sim.data)
+    fixed           <- fixef(sim.model)
+    fixed["treat1"]          <- 0
+    fixed["new_time:treat1"] <- 0
+    fixed["treat1:PTAU_bl"]  <- 0
+    fixed["new_time:treat1:PTAU_bl"] <- (-1*(fixed["new_time:PTAU_bl"] /2))
+    sum_model <- summary(sim.model)
+    sig    <- summary(sim.model)$sigma
+    varcor <- as.numeric(summary(sim.model)$varcor[[1]])
+    
+    constr.lme                                          <- makeLmer(as.formula(ptau), 
+                                                                    fixef    = fixed, 
+                                                                    VarCorr  = list(varcor), 
+                                                                    sigma    = sig, 
+                                                                    data     = sim.data)
+    sim_ext_rid     <- extend(constr.lme, along="RID", n=max(breaks))
+    return(constr.lme)
+  } else {
+  sim.model <- lmerTest::lmer(as.formula(formula), data = sim.data)
   fixed <- fixef(sim.model) 
   fixed["treat1"] <- 0
   fixed["treat1:new_time"] <-  (- (fixed["new_time"] /2))
-  rand  <-  as.numeric(VarCorr(sim.model))
+  rand  <-  as.numeric(summary(sim.model)$varcor[[1]])
   sig   <- summary(sim.model)$sigma
   constr.lme <-  makeLmer(as.formula(formula), fixef = fixed, VarCorr = rand, sigma = sig, data = sim.data)
+  }
   #build contrast progression plot
   treat0 <- sim.data[base.rows, ]
   treat1 <- treat0
@@ -211,9 +256,9 @@ SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, b
   plot.data <- rbind(treat0, treat1)
   plot.data$prediction <- predict(constr.lme, plot.data)
   plot.disease.contr <- ggplot(plot.data, aes(x=new_time, y=prediction, colour=treat)) + geom_smooth(method = "lm")
-  plot.disease.contr <- plot.disease.contr + xlab("Time (Weeks)") + ylab(yaxislab_dpm) + labs(colour="Treatment")
-  sim_ext_class     <- extend(constr.lme, along="RID", n=max(breaks))
-  p_curve_treat_sim <- powerCurve(sim_ext_class, test=fcompare(as.formula(fcompare_str)), along="RID", breaks=breaks)
+  plot.disease.contr <- plot.disease.contr + xlab("Time (Months)") + ylab(yaxislab_dpm) + labs(colour="Treatment")
+  sim_ext_rid        <- extend(constr.lme, along="RID", n=max(breaks))
+  p_curve_treat_sim <- powerCurve(sim_ext_rid, test=fcompare(as.formula(fcompare_str)), along="RID", breaks=breaks)
   summ_sim<- summary(p_curve_treat_sim)
   summ_sim$mean  <- summ_sim$mean*100
   summ_sim$lower <- summ_sim$lower*100
@@ -262,7 +307,7 @@ GroupDiseaseTraj <- function(sim.list, yaxislab_dpm) {
   plot.data$Enrichment <- plot.data$group
   
   gplot <- ggplot(plot.data, aes(y=predicted, x=new_time, colour=Enrichment, linetype = Treatment)) + geom_smooth(method = "lm", aes(fill=Enrichment), alpha=.1) 
-  gplot <- gplot  + xlab("Time (Weeks)") + ylab(yaxislab_dpm)
+  gplot <- gplot  + xlab("Time (Months)") + ylab(yaxislab_dpm)
   return(list("plot"=gplot, "screenfail"=screen.fail))
 }
 
@@ -292,9 +337,11 @@ CombineSimPlots <- function(power.list, limits) {
 
 QuickAdjust <- function(data) {
   data$RID <- factor(data$RID)
-  data <- TimeSinceBaselineValidAmy(data, "M")
+  data <- TimeSinceBaselineValidAmy(data, "M_vis")
   data <- subset(data, new_time <= 24)
   }
 
 
-
+CalculateCognitiveLoss <- function(model) {
+  
+}

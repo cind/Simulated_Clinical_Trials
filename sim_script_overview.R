@@ -39,22 +39,22 @@ library(matrixStats)
 library(lmerTest)
 
 #CDR
-cdr_global      <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
-cdr_global$EXAMDATE <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
-cdr_global          <- cdr_global[order(cdr_global$RID, cdr_global$EXAMDATE, decreasing = FALSE), ]
-cdr_global$VISCODE2 <- as.character(cdr_global$VISCODE2)
-cdr_global <- cdr_global[,c("RID", "VISCODE2", "CDGLOBAL")]
+cdr_global           <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
+cdr_global$EXAMDATE  <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
+cdr_global           <- cdr_global[order(cdr_global$RID, cdr_global$EXAMDATE, decreasing = FALSE), ]
+cdr_global$VISCODE2  <- as.character(cdr_global$VISCODE2)
+cdr_global           <- cdr_global[,c("RID", "VISCODE2", "CDGLOBAL")]
 colnames(cdr_global) <- c("RID", "VISCODE", "CDGLOBAL")
 
 
 #imaging
-adni_imaging    <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/unharmonized_freesurfer_imaging.csv")
-adni_imaging["DXCURREN"][which(is.na(adni_imaging$DXCURREN)), ] <- 0
-adni_imaging["DXCHANGE"][which(is.na(adni_imaging$DXCHANGE)), ] <- 0
+adni_imaging         <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/unharmonized_freesurfer_imaging.csv")
+adni_imaging["DXCURREN"][which(is.na(adni_imaging$DXCURREN)), ]   <- 0
+adni_imaging["DXCHANGE"][which(is.na(adni_imaging$DXCHANGE)), ]   <- 0
 adni_imaging["DIAGNOSIS"][which(is.na(adni_imaging$DIAGNOSIS)), ] <- 0
 adni_imaging$diagnosis_image <- rowSums2(as.matrix(adni_imaging[,c("DXCURREN", "DXCHANGE", "DIAGNOSIS")]))
-adni_imaging$age_image <- adni_imaging$AGE
-adni_imaging$ptgender_image <- adni_imaging$PTGENDER
+adni_imaging$age_image       <- adni_imaging$AGE
+adni_imaging$ptgender_image  <- adni_imaging$PTGENDER
 adni_imaging    <- adni_imaging[,c("RID", "VISCODE2", vol.ims)]
 vol.ims <- c("ST103CV", "ST44CV", "ST29SV", "ST88SV", "ST10CV", 
              "ST24CV", "ST32CV", "ST40CV", 
@@ -222,70 +222,99 @@ all.neuropat$imputed <- rep(NA, nrow(all.neuropat))
 all.neuropat["imputed"][complete.cases(all.neuropat[,c("TDP43", "LEWY", "CAA")]),] <- TRUE
 all.neuropat["imputed"][complete.cases(all.neuropat[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
                                                       "NPLBOD", "NPAMY")]),] <- FALSE
-all.neuropat$RID <- factor(all.neuropat$RID)
-all.neuropat <- TimeSinceBaseline(all.neuropat, "M_vis")
-all.neuropat <- all.neuropat[complete.cases(all.neuropat[,c("TOTAL11", "mPACCtrailsB", "MMSE", "CDRSB")]),]
-neuropat.imputed <- subset(all.neuropat, imputed==TRUE)
-neuropat.autopsy <- subset(all.neuropat, imputed==FALSE)
+all.neuropat$RID    <- factor(all.neuropat$RID)
+all.neuropat        <- TimeSinceBaseline(all.neuropat, "M_vis")
+all.neuropat        <- all.neuropat[complete.cases(all.neuropat[,c("TOTAL11", "mPACCtrailsB", "MMSE", "CDRSB")]),]
+neuropat.imputed    <- subset(all.neuropat, imputed==TRUE)
+neuropat.autopsy    <- subset(all.neuropat, imputed==FALSE)
 neuropat.imputed.bl <- subset(neuropat.imputed, new_time==0)
 neuropat.autopsy.bl <- subset(neuropat.autopsy, new_time==0)
 
-length(which(is.na(neuropat.autopsy.bl$TAU_pos_path)))
 
 
 means.imputed <- apply(neuropat.imputed.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, mean)
-sd.imputed <- apply(neuropat.imputed.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
+sd.imputed    <- apply(neuropat.imputed.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
 
 means.autopsy <- apply(neuropat.autopsy.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, mean)
-sd.autopsy <- apply(neuropat.autopsy.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
+sd.autopsy    <- apply(neuropat.autopsy.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
 
 
-neuropat.imputed$TOTAL11_zscore <- (neuropat.imputed$TOTAL11 - means.imputed["TOTAL11"]) / sd.imputed["TOTAL11"]
-neuropat.imputed$CDRSB_zscore <- (neuropat.imputed$CDRSB - means.imputed["CDRSB"]) / sd.imputed["CDRSB"]
+neuropat.imputed$TOTAL11_zscore      <- (neuropat.imputed$TOTAL11 - means.imputed["TOTAL11"]) / sd.imputed["TOTAL11"]
+neuropat.imputed$CDRSB_zscore        <- (neuropat.imputed$CDRSB - means.imputed["CDRSB"]) / sd.imputed["CDRSB"]
 neuropat.imputed$mPACCtrailsB_zscore <- (neuropat.imputed$mPACCtrailsB - means.imputed["mPACCtrailsB"]) / sd.imputed["mPACCtrailsB"]
-neuropat.imputed$MMSE_zscore <- (neuropat.imputed$MMSE - means.imputed["MMSE"]) / sd.imputed["MMSE"]
-neuropat.imputed$COMPOSITE_zscore <- matrixStats::rowSums2(as.matrix(neuropat.imputed[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
-neuropat.imputed$COMPOSITE_zscore <- neuropat.imputed$COMPOSITE_zscore / 4
-neuropat.imputed$RID <- factor(neuropat.imputed$RID)
-neuropat.imputed$fulllewy <- factor(neuropat.imputed$fulllewy)
-neuropat.imputed$fulltdp43 <- factor(neuropat.imputed$fulltdp43)
-neuropat.imputed$fullcaa <- factor(neuropat.imputed$fullcaa)
-neuropat.imputed$AmyPos_bl <- factor(neuropat.imputed$AmyPos_bl)
+neuropat.imputed$MMSE_zscore         <- (neuropat.imputed$MMSE - means.imputed["MMSE"]) / sd.imputed["MMSE"]
+neuropat.imputed$COMPOSITE_zscore    <- matrixStats::rowSums2(as.matrix(neuropat.imputed[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
+neuropat.imputed$COMPOSITE_zscore    <- neuropat.imputed$COMPOSITE_zscore / 4
+neuropat.imputed$RID         <- factor(neuropat.imputed$RID)
+neuropat.imputed$fulllewy    <- factor(neuropat.imputed$fulllewy)
+neuropat.imputed$fulltdp43   <- factor(neuropat.imputed$fulltdp43)
+neuropat.imputed$fullcaa     <- factor(neuropat.imputed$fullcaa)
+neuropat.imputed$AmyPos_bl   <- factor(neuropat.imputed$AmyPos_bl)
 neuropat.imputed$ptau_pos_bl <- factor(neuropat.imputed$ptau_pos_bl)
-neuropat.imputed$PTGENDER <- factor(neuropat.imputed$PTGENDER)
+neuropat.imputed$PTGENDER    <- factor(neuropat.imputed$PTGENDER)
 
-lme.imputed.total11<- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.cdrsb<- lmerTest::lmer(CDRSB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.mmse<- lmerTest::lmer(MMSE ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.mpacc<- lmerTest::lmer(mPACCtrailsB ~ new_time + + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
+lme.imputed.total11 <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
+lme.imputed.cdrsb   <- lmerTest::lmer(CDRSB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
+lme.imputed.mmse    <- lmerTest::lmer(MMSE ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
+lme.imputed.mpacc   <- lmerTest::lmer(mPACCtrailsB ~ new_time +  AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
 
 
+length(which(unname(unlist(Map(nrow, split(neuropat.autopsy, neuropat.autopsy$RID))))<=2))
 
-neuropat.autopsy$TOTAL11_zscore <- (neuropat.autopsy$TOTAL11 - means.autopsy["TOTAL11"]) / sd.autopsy["TOTAL11"]
-neuropat.autopsy$CDRSB_zscore <- (neuropat.autopsy$CDRSB - means.autopsy["CDRSB"]) / sd.autopsy["CDRSB"]
+neuropat.autopsy$TOTAL11_zscore      <- (neuropat.autopsy$TOTAL11 - means.autopsy["TOTAL11"]) / sd.autopsy["TOTAL11"]
+neuropat.autopsy$CDRSB_zscore        <- (neuropat.autopsy$CDRSB - means.autopsy["CDRSB"]) / sd.autopsy["CDRSB"]
 neuropat.autopsy$mPACCtrailsB_zscore <- (neuropat.autopsy$mPACCtrailsB - means.autopsy["mPACCtrailsB"]) / sd.autopsy["mPACCtrailsB"]
-neuropat.autopsy$MMSE_zscore <- (neuropat.autopsy$MMSE - means.autopsy["MMSE"]) / sd.autopsy["MMSE"]
-neuropat.autopsy$COMPOSITE_zscore <- matrixStats::rowSums2(as.matrix(neuropat.autopsy[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
-neuropat.autopsy$COMPOSITE_zscore <- neuropat.autopsy$COMPOSITE_zscore / 4
-neuropat.autopsy$RID <- factor(neuropat.autopsy$RID)
-neuropat.autopsy$fulllewy <- factor(neuropat.autopsy$fulllewy)
-neuropat.autopsy$fulltdp43 <- factor(neuropat.autopsy$fulltdp43)
-neuropat.autopsy$fullcaa <- factor(neuropat.autopsy$fullcaa)
-neuropat.autopsy$AmyPos_bl <- factor(neuropat.autopsy$AmyPos_bl)
-neuropat.autopsy$ptau_pos_bl <- factor(neuropat.autopsy$ptau_pos_bl)
+neuropat.autopsy$MMSE_zscore         <- (neuropat.autopsy$MMSE - means.autopsy["MMSE"]) / sd.autopsy["MMSE"]
+neuropat.autopsy$COMPOSITE_zscore    <- matrixStats::rowSums2(as.matrix(neuropat.autopsy[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
+neuropat.autopsy$COMPOSITE_zscore    <- neuropat.autopsy$COMPOSITE_zscore / 4
+neuropat.autopsy$RID          <- factor(neuropat.autopsy$RID)
+neuropat.autopsy$fulllewy     <- factor(neuropat.autopsy$fulllewy)
+neuropat.autopsy$fulltdp43    <- factor(neuropat.autopsy$fulltdp43)
+neuropat.autopsy$fullcaa      <- factor(neuropat.autopsy$fullcaa)
+neuropat.autopsy$AmyPos_bl    <- factor(neuropat.autopsy$AmyPos_bl)
+neuropat.autopsy$ptau_pos_bl  <- factor(neuropat.autopsy$ptau_pos_bl)
 neuropat.autopsy$Amy_pos_path <- factor(neuropat.autopsy$Amy_pos_path)
 neuropat.autopsy$TAU_pos_path <- factor(neuropat.autopsy$TAU_pos_path)
-neuropat.autopsy$PTGENDER <- factor(neuropat.autopsy$PTGENDER)
+neuropat.autopsy$PTGENDER     <- factor(neuropat.autopsy$PTGENDER)
 
 
-lme.autopsy.total11<- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.cdrsb<- lmerTest::lmer(CDRSB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.mmse<- lmerTest::lmer(MMSE ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.mpacc<- lmerTest::lmer(mPACCtrailsB ~ new_time + + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
+lme.autopsy.total11  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
+lme.autopsy.cdrsb    <- lmerTest::lmer(CDRSB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
+lme.autopsy.mmse     <- lmerTest::lmer(MMSE ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
+lme.autopsy.mpacc    <- lmerTest::lmer(mPACCtrailsB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
+
+modmat      <- as.data.frame(model.matrix(lme.autopsy.cdrsb))
+coef.modmat <- as.matrix(coef(lme.autopsy.cdrsb)[[1]])
+modmat      <- subset(modmat, new_time==0)
+modmat      <- modmat[,c("fulllewy1", "fullcaa1", 
+                    "fulltdp431", "Amy_pos_path1", 
+                    "TAU_pos_path1")]
+colnames(modmat) <- c("Lewy Body", "CAA", "TDP43", "Amyloid", "Tau")
+coef.modmat <- coef.modmat[,c("new_time:fulllewy1", "new_time:fullcaa1", 
+                              "new_time:fulltdp431", "new_time:Amy_pos_path1", 
+                              "new_time:TAU_pos_path1")]
+
+el.wise.mult <- as.matrix(coef.modmat * modmat)
+fullsum      <- rowSums2(el.wise.mult)
+checkfinal   <- el.wise.mult / fullsum
+checkfinal[is.nan(checkfinal)] <- 0 
+checkfinal   <- as.data.frame(checkfinal)
+counts       <- apply(modmat, 2, count)
+means        <- apply(checkfinal, 2, mean) * 100
+sds          <- apply(checkfinal, 2, sd) * 100
+counts <- paste(counts, " (", (counts / nrow(modmat)) * 100, " %", ")", sep="")
+means  <- paste(round(means, 3), " %", sep="")
+sds  <- paste(round(sds, 3), " %", sep="")
+testframe <- data.frame("Neuropathology" =  colnames(modmat),
+                        "Count"          =  counts,
+                        "Mean"           =  means,
+                        "SD"             =  sds)
 
 
 
-imputed.lmes <- list("ADAS-11" = lme.imputed.total11,
+
+
+imputed.lmes <- list("ADAS-11" = lme.imputed.total11,  
                      "CDRSB" = lme.imputed.cdrsb,
                      "MMSE" = lme.imputed.mmse,
                      "mPACCtrailsB" = lme.imputed.mpacc)
