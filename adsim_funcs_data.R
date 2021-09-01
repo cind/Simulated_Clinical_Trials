@@ -342,6 +342,100 @@ QuickAdjust <- function(data) {
   }
 
 
-CalculateCognitiveLoss <- function(model) {
+BuildSignificanceTable <- function(model) {
+  summodel<-summary(model)
+  coefdf <- summodel$coefficients
+  coefdf <- coefdf[,c(1,2,4,5)]
+  coefdf <- as.data.frame(coefdf)
+  coefdf$Significant <- rep("", nrow(coefdf))
+  for(i in 1:nrow(coefdf)) {
+    if(coefdf[4][i,] > .05) {
+    } else if(coefdf[4][i,] <= .05 & coefdf[4][i,] > 0.01) {
+      coefdf["Significant"][i,] <- "*"
+    } else if(coefdf[4][i,] <= .01 & coefdf[4][i,] > 0.001) {
+      coefdf["Significant"][i,] <- "**"
+    } else if(coefdf[4][i,] <= .001) {
+      coefdf["Significant"][i,] <- "***"
+    }
+  }  
+  return(coefdf)
+  
+}
+
+
+BuildESTable <- function(data) {
+  rows.int <- rownames(data[3:10,])
+  rows.time <- rownames(data[11:18,])
+  newframe <- data.frame(matrix(ncol = 3, nrow = 8))
+  newframe$X1 <- unname(unlist(list.names[rows.int]))
+  newframe$X2 <- paste(round(data["Estimate"][3:10,], 4), " (", round(data["Std. Error"][3:10,], 4), "), ", round(data["Pr(>|t|)"][3:10,], 4), data["Significant"][3:10,] , sep="")
+  newframe$X3 <- paste(round(data["Estimate"][11:18,], 4), " (", round(data["Std. Error"][11:18,], 4), "), ", round(data["Pr(>|t|)"][11:18,], 4), data["Significant"][11:18,] , sep="")
+  colnames(newframe) <- c("Variable", "Cognitive Level", "Cognitive Decline")
+  
+  return(newframe)
+}
+
+
+
+BuildNeuroPatDistr <- function(model) {
+  modmat      <- as.data.frame(model.matrix(model))
+  coef.modmat <- as.matrix(coef(model)[[1]])
+  modmat      <- subset(modmat, new_time==0)
+  modmat      <- modmat[,c("fulllewy1", "fullcaa1", 
+                           "fulltdp431", "Amy_pos_path1", 
+                           "TAU_pos_path1")]
+  colnames(modmat) <- c("Lewy Body", "CAA", "TDP43", "Amyloid", "Tau")
+  coef.modmat <- coef.modmat[,c("new_time:fulllewy1", "new_time:fullcaa1", 
+                                "new_time:fulltdp431", "new_time:Amy_pos_path1", 
+                                "new_time:TAU_pos_path1")]
+  
+  el.wise.mult <- as.matrix(coef.modmat * modmat)
+  fullsum      <- rowSums2(el.wise.mult)
+  checkfinal   <- el.wise.mult / fullsum
+  checkfinal[is.nan(checkfinal)] <- 0 
+  checkfinal   <- as.data.frame(checkfinal)
+  counts       <- apply(modmat, 2, count)
+  means        <- apply(checkfinal, 2, mean) * 100
+  sds          <- apply(checkfinal, 2, sd) * 100
+  counts <- paste(counts, " (", (counts / nrow(modmat)) * 100, " %", ")", sep="")
+  means  <- paste(round(means, 3), " %", sep="")
+  sds  <- paste(round(sds, 3), " %", sep="")
+  returnframe <- data.frame("Neuropathology" =  colnames(modmat),
+                            "Count"          =  counts,
+                            "Mean"           =  means,
+                            "SD"             =  sds)
+  return(returnframe)
+  
+}
+
+
+BuildNeuroPatDistrImp <- function(model) {
+  modmat      <- as.data.frame(model.matrix(model))
+  coef.modmat <- as.matrix(coef(model)[[1]])
+  modmat      <- subset(modmat, new_time==0)
+  modmat      <- modmat[,c("fulllewy1", "fullcaa1", 
+                           "fulltdp431", "AmyPos_bl1", 
+                           "ptau_pos_bl1")]
+  colnames(modmat) <- c("Lewy Body", "CAA", "TDP43", "Amyloid", "Tau")
+  coef.modmat <- coef.modmat[,c("new_time:fulllewy1", "new_time:fullcaa1", 
+                                "new_time:fulltdp431", "new_time:AmyPos_bl1", 
+                                "new_time:ptau_pos_bl1")]
+  
+  el.wise.mult <- as.matrix(coef.modmat * modmat)
+  fullsum      <- rowSums2(el.wise.mult)
+  checkfinal   <- el.wise.mult / fullsum
+  checkfinal[is.nan(checkfinal)] <- 0 
+  checkfinal   <- as.data.frame(checkfinal)
+  counts       <- apply(modmat, 2, count)
+  means        <- apply(checkfinal, 2, mean) * 100
+  sds          <- apply(checkfinal, 2, sd) * 100
+  counts <- paste(counts, " (", round((counts / nrow(modmat)), 3) * 100, " %", ")", sep="")
+  means  <- paste(round(means, 3), " %", sep="")
+  sds  <- paste(round(sds, 3), " %", sep="")
+  returnframe <- data.frame("Neuropathology" =  colnames(modmat),
+                            "Count"          =  counts,
+                            "Mean"           =  means,
+                            "SD"             =  sds)
+  return(returnframe)
   
 }
