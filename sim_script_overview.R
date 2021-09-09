@@ -36,6 +36,7 @@ library(simr)
 library(stringr)
 library(matrixStats)
 library(lmerTest)
+library(splitstackshape)
 
 #CDR
 cdr_global           <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
@@ -44,25 +45,14 @@ cdr_global           <- cdr_global[order(cdr_global$RID, cdr_global$EXAMDATE, de
 cdr_global$VISCODE2  <- as.character(cdr_global$VISCODE2)
 cdr_global           <- cdr_global[,c("RID", "VISCODE2", "CDGLOBAL")]
 colnames(cdr_global) <- c("RID", "VISCODE", "CDGLOBAL")
-
+cdr_global["VISCODE"][which(cdr_global$VISCODE=="sc"),] <- "bl"
 
 #imaging
-adni_imaging         <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/unharmonized_freesurfer_imaging.csv")
-adni_imaging["DXCURREN"][which(is.na(adni_imaging$DXCURREN)), ]   <- 0
-adni_imaging["DXCHANGE"][which(is.na(adni_imaging$DXCHANGE)), ]   <- 0
-adni_imaging["DIAGNOSIS"][which(is.na(adni_imaging$DIAGNOSIS)), ] <- 0
-adni_imaging$diagnosis_image <- rowSums2(as.matrix(adni_imaging[,c("DXCURREN", "DXCHANGE", "DIAGNOSIS")]))
-adni_imaging$age_image       <- adni_imaging$AGE
-adni_imaging$ptgender_image  <- adni_imaging$PTGENDER
-adni_imaging    <- adni_imaging[,c("RID", "VISCODE2", vol.ims)]
-vol.ims <- c("ST103CV", "ST44CV", "ST29SV", "ST88SV", "ST10CV", 
-             "ST24CV", "ST32CV", "ST40CV", 
-             "ST26CV", "ST83CV", "ST91CV", 
-             "ST99CV", "ST85CV", "ST37SV", "ST96SV",
-             "ST30SV", "ST89SV", "ST127SV", "ST9SV", "ST21SV", "ST80SV")
-colnames(adni_imaging)    <- c("RID", "VISCODE", vol.ims)
-image.drop <- which(duplicated(adni_imaging[,c("RID", "VISCODE")]))
-adni_imaging <- adni_imaging[-image.drop,]
+# harmonized in harmonize_imaging_for_simulation
+
+imaging_simulation_data <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/harmed_freesurfer_imaging.csv")
+
+
 
 #ADAS
 adas_scores_1   <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
@@ -148,8 +138,10 @@ adas_demog       <- adnimerge[,column.keeps]
 #Merging Data
 adas_merge_demog <- merge(adas_demog, adas_scores, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog <- merge(adas_merge_demog, adni_neuropsych, by=c("RID", "VISCODE"), all = TRUE)
-adas_merge_demog <- merge(adas_merge_demog, adni_imaging, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog <- merge(adas_merge_demog, csf.data, by=c("RID", "VISCODE"), all = TRUE)
+adas_merge_demog <- merge(adas_merge_demog, imaging_simulation_data, by=c("RID", "VISCODE"), all = TRUE)
+
+
 names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE.x'] <- 'EXAMDATE_adnimerge'
 names(adas_merge_demog)[names(adas_merge_demog) == "EXAMDATE.y"] <- "EXAMDATE_csf"
 adas_merge_demog <- merge(adas_merge_demog, neuropath.data, by="RID", all = TRUE)
@@ -162,24 +154,25 @@ adas_merge_demog$EXAMDATE_adnimerge <- as.POSIXct(adas_merge_demog$EXAMDATE_adni
 adas_merge_demog$EXAMDATE_csf<- as.POSIXct(adas_merge_demog$EXAMDATE_csf)
 adas_merge_demog$EXAMDATE_pet<- as.POSIXct(adas_merge_demog$EXAMDATE_pet)
 
-adas_merge_demog$diff_adas_csf <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_csf, units = "weeks"))
-adas_merge_demog$diff_adas_pet <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_pet, units = "weeks"))
-adas_merge_demog$adas_csf_valid <- adas_merge_demog$adas_pet_valid <- rep(NA, nrow(adas_merge_demog))
-adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 <= .5), ] <- 1
-adas_merge_demog["adas_csf_valid"][which(adas_merge_demog$diff_adas_csf/52 > .5), ] <- 0
-adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 <= .5), ] <- 1
-adas_merge_demog["adas_pet_valid"][which(adas_merge_demog$diff_adas_pet/52 > .5), ] <- 0
+adas_merge_demog$diff_csf <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_csf, units = "weeks"))
+adas_merge_demog$diff_pet <- abs(difftime(adas_merge_demog$EXAMDATE_adnimerge, adas_merge_demog$EXAMDATE_pet, units = "weeks"))
+adas_merge_demog$csf_valid <- adas_merge_demog$pet_valid <- rep(NA, nrow(adas_merge_demog))
+adas_merge_demog["csf_valid"][which(adas_merge_demog$diff_csf/52 <= .5), ] <- 1
+adas_merge_demog["csf_valid"][which(adas_merge_demog$diff_csf/52 > .5), ] <- 0
+adas_merge_demog["pet_valid"][which(adas_merge_demog$diff_pet/52 <= .5), ] <- 1
+adas_merge_demog["pet_valid"][which(adas_merge_demog$diff_pet/52 > .5), ] <- 0
 adas_merge_demog$csf_pos <- adas_merge_demog$suvr_pos<- adas_merge_demog$ptau_pos<- rep(NA, nrow(adas_merge_demog))
-adas_merge_demog$ABETA <- as.numeric(as.character(adas_merge_demog$ABETA))
-adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM >= .78), ] <- 1
-adas_merge_demog["suvr_pos"][which(adas_merge_demog$adas_pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM < .78), ] <- 0
-adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA < amyloid.cutpoint), ] <- 1
-adas_merge_demog["csf_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$ABETA >= amyloid.cutpoint), ] <- 0
-adas_merge_demog["ptau_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$PTAU >= ptau.cutpoint), ] <- 1
-adas_merge_demog["ptau_pos"][which(adas_merge_demog$adas_csf_valid == 1 & adas_merge_demog$PTAU < ptau.cutpoint), ] <- 0
+adas_merge_demog$ABETA   <- as.numeric(as.character(adas_merge_demog$ABETA))
+adas_merge_demog["suvr_pos"][which(adas_merge_demog$pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM >= .78), ] <- 1
+adas_merge_demog["suvr_pos"][which(adas_merge_demog$pet_valid == 1 & adas_merge_demog$SUMMARYSUVR_COMPOSITE_REFNORM < .78), ] <- 0
+adas_merge_demog["csf_pos"][which(adas_merge_demog$csf_valid == 1 & adas_merge_demog$ABETA < amyloid.cutpoint), ] <- 1
+adas_merge_demog["csf_pos"][which(adas_merge_demog$csf_valid == 1 & adas_merge_demog$ABETA >= amyloid.cutpoint), ] <- 0
+adas_merge_demog["ptau_pos"][which(adas_merge_demog$csf_valid == 1 & adas_merge_demog$PTAU >= ptau.cutpoint), ] <- 1
+adas_merge_demog["ptau_pos"][which(adas_merge_demog$csf_valid == 1 & adas_merge_demog$PTAU < ptau.cutpoint), ] <- 0
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$VISCODE, decreasing = FALSE), ]
 adas_merge_demog$AmyPos <- rep(NA, nrow(adas_merge_demog))
-
+adas_merge_demog$AmyPos_full <- rep(NA, nrow(adas_merge_demog))
+adas_merge_demog$TauPos_full <- rep(NA, nrow(adas_merge_demog))
 
 for(i in 1:nrow(adas_merge_demog)) {
   if(!is.na(adas_merge_demog["suvr_pos"][i,]) & adas_merge_demog["suvr_pos"][i,]==1) {
@@ -191,6 +184,8 @@ for(i in 1:nrow(adas_merge_demog)) {
   }
 }
 
+
+
 adas_merge_demog$M_vis <- substr(adas_merge_demog$VISCODE, 2, 10)
 adas_merge_demog$M_vis <- as.numeric(adas_merge_demog$M_vis)
 adas_merge_demog["M_vis"][which(adas_merge_demog$VISCODE=="bl"), ] <- 0
@@ -198,7 +193,7 @@ adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demo
 adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
 baseline.var.list <- c("DX","AGE", "PTGENDER", "PTEDUCAT", 
                        "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", 
-                       "ABETA", "TAU", "PTAU", "AmyPos", "ptau_pos", "CDGLOBAL", "ADNI_MEM", "ADNI_EF")
+                       "ABETA", "TAU", "PTAU", "AmyPos","ptau_pos", "CDGLOBAL", "ADNI_MEM", "ADNI_EF")
 adas_merge_demog$DX <- as.character(adas_merge_demog$DX)
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
 adas_merge_demog$RID <- factor(as.character(adas_merge_demog$RID))
@@ -212,122 +207,533 @@ baseline.var.list <- paste(baseline.var.list, "_bl", sep="")
 
 # All neuropathology data for checking effect size of neurpats on outcome 
 
-all.neuropat <- adas_merge_demog[complete.cases(adas_merge_demog[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                                                    "NPLBOD", "NPAMY")]) | 
-                                 complete.cases(adas.data.complete[,c("TDP43", "LEWY", "CAA")]),]
+aut.rows <- which(complete.cases(adas_merge_demog[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                                                    "NPLBOD", "NPAMY")]))
 
 
-all.neuropat <- all.neuropat[complete.cases(all.neuropat[,c("PTAU_bl", "PTEDUCAT_bl", "PTGENDER_bl", "CDRSB", "MMSE", "TOTAL11", "mPACCtrailsB", "PTAU_bl")]), ]
+imputed.rows <- which(complete.cases(adas_merge_demog[,c("TDP43", "LEWY", "CAA")]))
+keeps <- unique(union(aut.rows, imputed.rows))
+all.neuropat <- adas_merge_demog[keeps,]
 all.neuropat <- SetNeuroData(all.neuropat)
+
+
+
+
+
+
+for(i in 1:nrow(all.neuropat)) {
+  if(!is.na(all.neuropat["Amy_pos_path"][i,]) & all.neuropat["Amy_pos_path"][i,]==1) {
+    all.neuropat["AmyPos_full"][i,] <- 1
+  } else if(!is.na(all.neuropat["AmyPos"][i,]) & all.neuropat["AmyPos"][i,]==1) {
+    all.neuropat["AmyPos_full"][i,] <- 1
+  } else if(!is.na(all.neuropat["Amy_pos_path"][i,]) | !is.na(all.neuropat["AmyPos"][i,])) {
+    all.neuropat["AmyPos_full"][i,] <- 0
+  }
+}
+
+for(i in 1:nrow(all.neuropat)) {
+  if(!is.na(all.neuropat["TAU_pos_path"][i,]) & all.neuropat["TAU_pos_path"][i,]==1) {
+    all.neuropat["TauPos_full"][i,] <- 1
+  } else if(!is.na(all.neuropat["ptau_pos"][i,]) & all.neuropat["ptau_pos"][i,]==1) {
+    all.neuropat["TauPos_full"][i,] <- 1
+  } else if(!is.na(all.neuropat["TAU_pos_path"][i,]) | !is.na(all.neuropat["ptau_pos"][i,])) {
+    all.neuropat["TauPos_full"][i,] <- 0
+  }
+}
+
+all.neuropat$RID <- factor(all.neuropat$RID)
+all.neuropat <- CreateBaselineVar(all.neuropat, "M_vis", "AmyPos_full")
+all.neuropat <- CreateBaselineVar(all.neuropat, "M_vis", "TauPos_full")
 all.neuropat$imputed <- rep(NA, nrow(all.neuropat))
-all.neuropat["imputed"][complete.cases(all.neuropat[,c("TDP43", "LEWY", "CAA")]),] <- TRUE
-all.neuropat["imputed"][complete.cases(all.neuropat[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
-                                                      "NPLBOD", "NPAMY")]),] <- FALSE
-all.neuropat$RID    <- factor(all.neuropat$RID)
-all.neuropat        <- TimeSinceBaseline(all.neuropat, "M_vis")
-all.neuropat        <- subset(all.neuropat, new_time <= 24)
-all.neuropat$RID    <- factor(all.neuropat$RID)
-rem.names <- names(which(unlist(Map(nrow, split(all.neuropat, all.neuropat$RID))) <= 2))
-all.neuropat        <- subset(all.neuropat, RID %notin% rem.names)
-all.neuropat$RID    <- factor(all.neuropat$RID)
-all.neuropat <- all.neuropat[complete.cases(all.neuropat[,c("PTAU_bl", "PTEDUCAT_bl", "PTGENDER_bl", "CDRSB", "MMSE", "TOTAL11", "mPACCtrailsB", "PTAU_bl", "fulllewy", "fulltdp43", "fullcaa", "AmyPos_bl")]), ]
-
-lme.all.total11.1  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time + (1|RID), data = all.neuropat)
-lme.all.total11.2  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  AmyPos_bl*new_time + (1|RID), data = all.neuropat)
-lme.all.total11.3  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  AmyPos_bl*new_time + PTAU_bl*new_time  + (1|RID), data = all.neuropat)
-lme.all.total11.4  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  AmyPos_bl*new_time + PTAU_bl*new_time  +  fulllewy*new_time + (1|RID), data = all.neuropat)
-lme.all.total11.5  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  AmyPos_bl*new_time + PTAU_bl*new_time  +  fulllewy*new_time +   fulltdp43*new_time +(1|RID), data = all.neuropat)
-lme.all.total11.6  <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  AmyPos_bl*new_time + PTAU_bl*new_time  +  fulllewy*new_time +   fulltdp43*new_time +   fullcaa*new_time + (1|RID), data = all.neuropat)
 
 
 
 
 
+all.neuropat <- all.neuropat[complete.cases(all.neuropat[,c("DX_bl", "PTEDUCAT_bl", "PTGENDER_bl", "fulllewy", 
+                                                            "fulltdp43", "fullcaa", "CDGLOBAL_bl", 
+                                                            "AGE_bl", "MMSE_bl", "AmyPos_full_bl", "TauPos_full_bl")]), ]
+
+all.neuropat.bl <- subset(all.neuropat, M_vis == 0)
+all.neuropat.bl$RID <- factor(all.neuropat.bl$RID)
+
+testneurodata <- all.neuropat.bl[,c("RID", "PTEDUCAT_bl", "PTGENDER_bl", "fulllewy", 
+                                    "fulltdp43", "fullcaa", 
+                                    "AGE_bl")]
+testneurodata <- StratifyContVar(testneurodata, stratcols =  c("PTEDUCAT_bl",  "AGE_bl"))
+testneurodata.rids <- RandomizeTreatment2(testneurodata, stratcolumns = c("PTEDUCAT_bl_strat", "PTGENDER_bl", "fulllewy", 
+                                                                          "fulltdp43", "fullcaa", 
+                                                                          "AGE_bl_strat"))
 
 
 
 
-neuropat.imputed   <- subset(all.neuropat, imputed==TRUE)
-neuropat.autopsy    <- subset(all.neuropat, imputed==FALSE)
-neuropat.imputed.bl <- subset(neuropat.imputed, new_time==0)
-neuropat.autopsy.bl <- subset(neuropat.autopsy, new_time==0)
+autopsy.data <- all.neuropat[complete.cases(all.neuropat[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
+                                                            "NPLBOD", "NPAMY")]),]
+imputed.data <- all.neuropat[complete.cases(all.neuropat[,c("TDP43", "LEWY", "CAA")]),]
 
 
+autopsy.data.bl <- subset(autopsy.data, M_vis==0)
+imputed.data.bl <- subset(imputed.data, M_vis==0)
+autopsy.data.bl$RID         <- factor(autopsy.data.bl$RID)
+autopsy.data.bl$fulllewy    <- factor(autopsy.data.bl$fulllewy)
+autopsy.data.bl$fulltdp43   <- factor(autopsy.data.bl$fulltdp43)
+autopsy.data.bl$fullcaa     <- factor(autopsy.data.bl$fullcaa)
+autopsy.data.bl$DX_bl       <- factor(autopsy.data.bl$DX_bl)
+autopsy.data.bl$PTGENDER    <- factor(autopsy.data.bl$PTGENDER)
+autopsy.data.bl$AmyPos_full    <- factor(autopsy.data.bl$AmyPos_full)
+autopsy.data.bl$TauPos_full    <- factor(autopsy.data.bl$TauPos_full)
+autopsy.data$L
+autopsy.data.bl$PTGENDER    <- factor(autopsy.data.bl$PTGENDER)
+autopsy.desc        <- table1(autopsy.data.bl[,c("DX_bl", "AGE_bl", "PTGENDER", "PTEDUCAT_bl", "MMSE_bl" , "CDRSB_bl", 
+                                           "mPACCtrailsB_bl", "TauPos_full", "AmyPos_full","fullcaa", "fulltdp43", "fulllewy", "VentricalSum")], splitby = ~DX_bl)$Table1
 
-means.imputed <- apply(neuropat.imputed.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, mean)
-sd.imputed    <- apply(neuropat.imputed.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
+View(autopsy.desc)
 
-means.autopsy <- apply(neuropat.autopsy.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, mean)
-sd.autopsy    <- apply(neuropat.autopsy.bl[,c("TOTAL11", "mPACCtrailsB", "CDRSB", "MMSE")], 2, sd)
+cns  <- which(autopsy.data.bl$DX_bl=="CN")
+mcis <- which(autopsy.data.bl$DX_bl=="MCI")
+ads  <- which(autopsy.data.bl$DX_bl=="Dementia")
 
+cns <- cns[1:10]
+length(cns)
+mcis <- mcis[1:8]
+ads  <- ads[1:11]
 
-neuropat.imputed$TOTAL11_zscore      <- (neuropat.imputed$TOTAL11 - means.imputed["TOTAL11"]) / sd.imputed["TOTAL11"]
-neuropat.imputed$CDRSB_zscore        <- (neuropat.imputed$CDRSB - means.imputed["CDRSB"]) / sd.imputed["CDRSB"]
-neuropat.imputed$mPACCtrailsB_zscore <- (neuropat.imputed$mPACCtrailsB - means.imputed["mPACCtrailsB"]) / sd.imputed["mPACCtrailsB"]
-neuropat.imputed$MMSE_zscore         <- (neuropat.imputed$MMSE - means.imputed["MMSE"]) / sd.imputed["MMSE"]
-neuropat.imputed$COMPOSITE_zscore    <- matrixStats::rowSums2(as.matrix(neuropat.imputed[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
-neuropat.imputed$COMPOSITE_zscore    <- neuropat.imputed$COMPOSITE_zscore / 4
-neuropat.imputed$RID         <- factor(neuropat.imputed$RID)
-neuropat.imputed$fulllewy    <- factor(neuropat.imputed$fulllewy)
-neuropat.imputed$fulltdp43   <- factor(neuropat.imputed$fulltdp43)
-neuropat.imputed$fullcaa     <- factor(neuropat.imputed$fullcaa)
-neuropat.imputed$AmyPos_bl   <- factor(neuropat.imputed$AmyPos_bl)
-neuropat.imputed$ptau_pos_bl <- factor(neuropat.imputed$ptau_pos_bl)
-neuropat.imputed$PTGENDER    <- factor(neuropat.imputed$PTGENDER)
-
-lme.imputed.total11 <- lmerTest::lmer(TOTAL11 ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.cdrsb   <- lmerTest::lmer(CDRSB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.mmse    <- lmerTest::lmer(MMSE ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-lme.imputed.mpacc   <- lmerTest::lmer(mPACCtrailsB ~ new_time +  AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time +  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + AmyPos_bl*new_time +ptau_pos_bl*new_time + (1|RID), data = neuropat.imputed)
-
-
-
-neuropat.autopsy$TOTAL11_zscore      <- (neuropat.autopsy$TOTAL11 - means.autopsy["TOTAL11"]) / sd.autopsy["TOTAL11"]
-neuropat.autopsy$CDRSB_zscore        <- (neuropat.autopsy$CDRSB - means.autopsy["CDRSB"]) / sd.autopsy["CDRSB"]
-neuropat.autopsy$mPACCtrailsB_zscore <- (neuropat.autopsy$mPACCtrailsB - means.autopsy["mPACCtrailsB"]) / sd.autopsy["mPACCtrailsB"]
-neuropat.autopsy$MMSE_zscore         <- (neuropat.autopsy$MMSE - means.autopsy["MMSE"]) / sd.autopsy["MMSE"]
-neuropat.autopsy$COMPOSITE_zscore    <- matrixStats::rowSums2(as.matrix(neuropat.autopsy[,c("TOTAL11_zscore", "mPACCtrailsB_zscore", "CDRSB_zscore", "MMSE_zscore")]))
-neuropat.autopsy$COMPOSITE_zscore    <- neuropat.autopsy$COMPOSITE_zscore / 4
-neuropat.autopsy$RID          <- factor(neuropat.autopsy$RID)
-neuropat.autopsy$fulllewy     <- factor(neuropat.autopsy$fulllewy)
-neuropat.autopsy$fulltdp43    <- factor(neuropat.autopsy$fulltdp43)
-neuropat.autopsy$fullcaa      <- factor(neuropat.autopsy$fullcaa)
-neuropat.autopsy$AmyPos_bl    <- factor(neuropat.autopsy$AmyPos_bl)
-neuropat.autopsy$ptau_pos_bl  <- factor(neuropat.autopsy$ptau_pos_bl)
-neuropat.autopsy$Amy_pos_path <- factor(neuropat.autopsy$Amy_pos_path)
-neuropat.autopsy$TAU_pos_path <- factor(neuropat.autopsy$TAU_pos_path)
-neuropat.autopsy$PTGENDER     <- factor(neuropat.autopsy$PTGENDER)
-
-
-lme.autopsy.total11  <- lmerTest::lmer(TOTAL11      ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.cdrsb    <- lmerTest::lmer(CDRSB        ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.mmse     <- lmerTest::lmer(MMSE         ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-lme.autopsy.mpacc    <- lmerTest::lmer(mPACCtrailsB ~ new_time + AGE_bl*new_time + PTGENDER*new_time + PTEDUCAT_bl*new_time+  fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + Amy_pos_path*new_time +TAU_pos_path*new_time + (1|RID), data = neuropat.autopsy)
-summary(lme.autopsy.mmse)
+balanced.autopsy <- autopsy.data.bl[c(cns, mcis, ads),]
+balanced.autopsy$RID <- factor(balanced.autopsy$RID)
+balanced.autopsy$Amy_pos_path <- factor(balanced.autopsy$Amy_pos_path)
+balanced.autopsy$TAU_pos_path <- factor(balanced.autopsy$TAU_pos_path)
+unname(quantile(balanced.autopsy$AGE_bl)[2:5])
 
 
 
 
+balanced.autopsy.desc <- table1(balanced.autopsy[,c("DX_bl", "AGE_bl", "PTGENDER", "PTEDUCAT_bl", "MMSE_bl" , "CDRSB_bl", 
+                                                  "mPACCtrailsB_bl", "TAU_pos_path", "Amy_pos_path","fullcaa", "fulltdp43", "fulllewy")], 
+                                                                                                               splitby = ~DX_bl)$Table1
+balanced.autopsy.long <- subset(autopsy.data, RID %in% balanced.autopsy$RID)
+balanced.autopsy.long <- balanced.autopsy.long[complete.cases(balanced.autopsy.long[,c("RID", "M_vis", "MMSE", "TOTAL11", "CDRSB", "mPACCtrailsB", "ADNI_MEM", "ADNI_EF", "VentricalSum")]), ]
+balanced.autopsy.long <- TimeSinceBaseline(balanced.autopsy.long, timecol = "M_vis")
+balanced.autopsy.long <- ZscoreAdj(balanced.autopsy.long, c("MMSE", "TOTAL11", "CDRSB", "mPACCtrailsB", "ADNI_MEM", "ADNI_EF", "VentricalSum"))
+balanced.autopsy.long$COMPOSITEZSCORE <- (balanced.autopsy.long$MMSE_zscore + balanced.autopsy.long$mPACCtrailsB_zscore+ balanced.autopsy.long$ADNI_MEM+ balanced.autopsy.long$ADNI_EF) / 4
+balanced.autopsy.long$new_time  <- (balanced.autopsy.long$new_time / 12)
+balanced.autopsy.long$fulllewy  <- factor(balanced.autopsy.long$fulllewy)
+balanced.autopsy.long$fulltdp43 <- factor(balanced.autopsy.long$fulltdp43)
+balanced.autopsy.long$fullcaa   <- factor(balanced.autopsy.long$fullcaa)
+balanced.autopsy.long$Amy_pos_path   <- factor(balanced.autopsy.long$Amy_pos_path)
+balanced.autopsy.long$TAU_pos_path   <- factor(balanced.autopsy.long$TAU_pos_path)
+balanced.autopsy.long$PTGENDER_bl    <- factor(balanced.autopsy.long$PTGENDER_bl, levels = c("Female", "Male"))
+contrasts(balanced.autopsy.long$PTGENDER_bl) <- contr.treatment(levels(balanced.autopsy.long$PTGENDER_bl),
+                                           base=which(levels(balanced.autopsy.long$PTGENDER_bl) == 'Female'))
 
 
-imputed.lmes <- list("ADAS-11" = lme.imputed.total11,  
-                     "CDRSB" = lme.imputed.cdrsb,
-                     "MMSE" = lme.imputed.mmse,
-                     "mPACCtrailsB" = lme.imputed.mpacc)
 
-autopsy.lmes <- list("ADAS-11" = lme.autopsy.total11,
-                     "CDRSB" = lme.autopsy.cdrsb,
-                     "MMSE" = lme.autopsy.mmse,
-                     "mPACCtrailsB" = lme.autopsy.mpacc)
+autopsy.lme    <- lmerTest::lmer(LeftMeta ~ new_time + new_time*AGE_bl  + 
+                                   new_time*PTGENDER_bl + new_time*PTEDUCAT_bl  + fulllewy*new_time  + 
+                                   fullcaa*new_time     + fulltdp43*new_time    + fulltdp43*new_time + 
+                                   AmyPos_full*new_time + TauPos_full*new_time  + (1 | RID),  data = balanced.autopsy.long)
 
-save.list <- list("imputed_data" = neuropat.imputed.bl,
-                  "autopsy_data" = neuropat.autopsy.bl,
-                  "imputed.lmes" = imputed.lmes,
-                  "autopsy.lmes" = autopsy.lmes)
+summary(autopsy.lme)
 
 
 
-saveRDS(save.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/neuro_lmes.rds")
+
+
+
+
+autopsy.list <- list("unbalanced.autopsy.table" = autopsy.desc,
+                     "balanced.autopsy.table" = balanced.autopsy.desc,
+                     "balanced.autopsy.lme"   = autopsy.lme)
+
+
+
+
+summary(autopsy.list$balanced.autopsy.lme)
+imputed.data.bl$RID            <- factor(imputed.data.bl$RID)
+imputed.data.bl$fulllewy       <- factor(imputed.data.bl$fulllewy)
+imputed.data.bl$fulltdp43      <- factor(imputed.data.bl$fulltdp43)
+imputed.data.bl$fullcaa        <- factor(imputed.data.bl$fullcaa)
+imputed.data.bl$DX_bl          <- factor(imputed.data.bl$DX_bl)
+imputed.data.bl$PTGENDER       <- factor(imputed.data.bl$PTGENDER)
+imputed.data.bl$AmyPos_full    <- factor(imputed.data.bl$AmyPos_full)
+imputed.data.bl$TauPos_full    <- factor(imputed.data.bl$TauPos_full)
+
+imputed.data.bl$PTGENDER    <- factor(imputed.data.bl$PTGENDER)
+imputed.desc        <- table1(imputed.data.bl[,c("DX_bl", "AGE_bl", "PTGENDER", "PTEDUCAT_bl", "MMSE_bl" , "CDRSB_bl", 
+                                                 "mPACCtrailsB_bl", "TauPos_full", "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")], splitby = ~DX_bl)$Table1
+
+
+cns.imputed  <- which(imputed.data.bl$DX_bl=="CN")
+mcis.imputed <- which(imputed.data.bl$DX_bl=="MCI")
+ads.imputed  <- which(imputed.data.bl$DX_bl=="Dementia")
+
+cns.imputed <- cns.imputed[1:190]
+mcis.imputed <- mcis.imputed[1:175]
+ads.imputed <- ads.imputed[1:200]
+
+balanced.imputed <- imputed.data.bl[c(cns.imputed, mcis.imputed, ads.imputed),]
+balanced.imputed$RID <- factor(balanced.imputed$RID)
+balanced.imputed$AmyPos_full <- factor(balanced.imputed$AmyPos_full)
+balanced.imputed$TauPos_full <- factor(balanced.imputed$TauPos_full)
+
+balanced.imputed.desc <- table1(balanced.imputed[,c("DX_bl", "AGE_bl", "PTGENDER", "PTEDUCAT_bl", "MMSE_bl" , "CDRSB_bl", 
+                                                    "mPACCtrailsB_bl", "AmyPos_full", "TauPos_full","fullcaa", "fulltdp43", "fulllewy")], 
+                                splitby = ~DX_bl)$Table1
+
+
+
+balanced.imputed.long <- subset(imputed.data, RID %in% balanced.imputed$RID)
+balanced.imputed.long <- balanced.imputed.long[complete.cases(balanced.imputed.long[,c("RID", "M_vis", "VentricalSum")]), ]
+balanced.imputed.long <- TimeSinceBaseline(balanced.imputed.long, timecol = "M_vis")
+balanced.imputed.long <- ZscoreAdj(balanced.imputed.long, c( "VentricalSum"))
+#balanced.imputed.long$COMPOSITEZSCORE <- (balanced.imputed.long$MMSE_zscore + balanced.imputed.long$mPACCtrailsB_zscore+ balanced.imputed.long$ADNI_MEM+ balanced.imputed.long$ADNI_EF) / 4
+balanced.imputed.long$new_time   <- (balanced.imputed.long$new_time / 12)
+balanced.imputed.long$fulllewy  <- factor(balanced.imputed.long$fulllewy)
+balanced.imputed.long$fulltdp43 <- factor(balanced.imputed.long$fulltdp43)
+balanced.imputed.long$fullcaa   <- factor(balanced.imputed.long$fullcaa)
+balanced.imputed.long$AmyPos_full <- factor(balanced.imputed.long$AmyPos_full)
+balanced.imputed.long$TauPos_full <- factor(balanced.imputed.long$TauPos_full)
+balanced.imputed.long$RID <- factor(balanced.imputed.long$RID)
+which(is.na(balanced.imputed.long[,c("DX_bl", "AGE_bl", "PTGENDER", "PTEDUCAT_bl",
+                                "VentricalSum", "AmyPos_full", "TauPos_full","fullcaa", "fulltdp43", "fulllewy")]), arr.ind = TRUE)
+
+imputed.lme    <- lmerTest::lmer(VentricalSum ~    new_time + new_time*AGE_bl   + new_time*PTGENDER_bl +  new_time*PTEDUCAT_bl  + fulllewy*new_time  + 
+                                   fullcaa*new_time     + fulltdp43*new_time    + 
+                                   AmyPos_full*new_time + TauPos_full*new_time  +
+                                     (1 + new_time|RID)  ,  data = balanced.imputed.long, control = lmerControl(optimizer = "Nelder_Mead"))
+
+
+summary(imputed.lme)
+
+rem.names <- names(which(unlist(Map(nrow, split(balanced.imputed.long, balanced.imputed.long$RID))) <= 2))
+test.remove <- subset(balanced.imputed.long, RID %notin% rem.names)
+test.remove$RID <- factor(test.remove$RID)
+unlist(Map(nrow, split(test.remove, test.remove$RID)))
+nrow(test.remove)
+View(test.remove[1:50,])
+imputed.lme2    <-  lmerTest::lmer(VentricalSum    ~  new_time + new_time*AGE_bl  + new_time*PTGENDER_bl +  new_time*PTEDUCAT_bl  + fulllewy*new_time  + 
+                                     fullcaa*new_time     + fulltdp43*new_time    + 
+                                     AmyPos_full*new_time + TauPos_full*new_time  +
+                                     (1 + new_time|RID)  ,  data = test.remove)
+
+summary(imputed.lme2)
+
+
+imputed.list <- list("unbalanced.imputed.table" = imputed.desc,
+                     "balanced.imputed.table"   = balanced.imputed.desc,
+                     "balanced.imputed.lme"     = imputed.lme)
+
+
+
+saveRDS(list("autopsy" = autopsy.list,
+             "imputed" = imputed.list), "/Users/adamgabriellang/Desktop/clinical_trial_sim/save_ptau_and_total/aut_imp.rds")
+
+
+
+necc.cols.t11   <- c("RID", "M_vis", "TOTAL11")
+necc.cols.cdr   <- c("RID", "M_vis", "CDRSB")
+necc.cols.mmse  <- c("RID", "M_vis", "MMSE")
+necc.cols.mpacc <- c("RID", "M_vis", "mPACCtrailsB")
+necc.cols.mem   <- c("RID", "M_vis", "ADNI_MEM", "ADNI_EF")
+
+all.neuropat$RID          <- factor(all.neuropat$RID)
+all.neuropat$fulllewy     <- factor(all.neuropat$fulllewy)
+all.neuropat$fulltdp43    <- factor(all.neuropat$fulltdp43)
+all.neuropat$fullcaa         <- factor(all.neuropat$fullcaa)
+all.neuropat$AmyPos_full_bl    <- factor(all.neuropat$AmyPos_full_bl)
+all.neuropat$TauPos_full_bl    <- factor(all.neuropat$TauPos_full_bl)
+all.neuropat$Amy_pos_path <- factor(all.neuropat$Amy_pos_path)
+all.neuropat$TAU_pos_path <- factor(all.neuropat$TAU_pos_path)
+all.neuropat$PTGENDER     <- factor(all.neuropat$PTGENDER)
+
+
+combined.11    <- all.neuropat[complete.cases(all.neuropat[,necc.cols.t11]),]
+combined.cdr   <- all.neuropat[complete.cases(all.neuropat[,necc.cols.cdr]),]
+combined.mmse  <- all.neuropat[complete.cases(all.neuropat[,necc.cols.mmse]),]
+combined.mpacc <- all.neuropat[complete.cases(all.neuropat[,necc.cols.mpacc]),]
+combined.mem   <- all.neuropat[complete.cases(all.neuropat[,necc.cols.mem]),]
+
+full.data.list <- list("combined.11"      = combined.11,
+                       "combined.cdr"     = combined.cdr,
+                       "combined.mmse"    = combined.mmse,
+                       "combined.mpacc"   = combined.mpacc,
+                       "combined.mem"     = combined.mem)
+
+full.data.list <- Map(QuickAdjust, full.data.list)
+
+
+
+control.cohort                     <- lapply(full.data.list, function(x)  subset(x, new_time==0 &  DX_bl=="CN" & AmyPos_full_bl==0 & TauPos_full_bl == 0 & CDGLOBAL_bl == 0 & fulllewy == 0 & fulltdp43 == 0 & fullcaa == 0))
+control.cohort.long                <- purrr::map2(control.cohort, full.data.list, PullLongData)
+
+mci.scen1.generic                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
+mci.scen1.generic.tplus            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & TauPos_full_bl==1 &  AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
+mci.scen1.earlyage                 <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65))
+
+mci.scen1.generic.long             <- purrr::map2(mci.scen1.generic, full.data.list, PullLongData)
+mci.scen1.generic.long.tplus       <- purrr::map2(mci.scen1.generic.tplus, full.data.list, PullLongData)
+mci.scen1.earlyage.long            <- purrr::map2(mci.scen1.earlyage, full.data.list, PullLongData)
+
+early.ad.scen1.generic            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.generic.tplus      <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.earlyage           <- lapply(full.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl >=55 & AGE_bl <= 65 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+
+early.ad.scen1.generic.long        <- purrr::map2(early.ad.scen1.generic, full.data.list, PullLongData)
+early.ad.scen1.generic.long.tplus  <- purrr::map2(early.ad.scen1.generic.tplus, full.data.list, PullLongData)
+early.ad.scen1.earlyage.long       <- purrr::map2(early.ad.scen1.earlyage, full.data.list, PullLongData)
+
+
+ad.scen1.generic                   <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=65 & AGE_bl <= 85))
+ad.scen1.generic.tplus             <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & TauPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=65 & AGE_bl <= 85))
+ad.scen1.earlyage                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=55 & AGE_bl <= 65))
+
+ad.scen1.generic.long              <- purrr::map2(ad.scen1.generic, full.data.list, PullLongData)
+ad.scen1.generic.long.tplus        <- purrr::map2(ad.scen1.generic.tplus, full.data.list, PullLongData)
+ad.scen1.earlyage.long             <- purrr::map2(ad.scen1.earlyage, full.data.list, PullLongData)
+
+
+#Controls
+lme.control.combined.total11 <- lmerTest::lmer(TOTAL11      ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.11"]])
+lme.control.combined.cdrsb   <- lmerTest::lmer(CDRSB        ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.cdr"]])
+lme.control.combined.mmse    <- lmerTest::lmer(MMSE         ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mmse"]])
+lme.control.combined.mpacc   <- lmerTest::lmer(mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mpacc"]])
+
+
+#MCI
+lme.mci.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.generic.long[["combined.11"]])
+lme.mci.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.generic.long[["combined.cdr"]])
+lme.mci.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.generic.long[["combined.mmse"]])
+lme.mci.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.generic.long[["combined.mpacc"]])
+
+
+lme.mci.tplus.total11  <- lmerTest::lmer(TOTAL11      ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.11"]])
+
+lme.mci.tplus.cdrsb    <- lmerTest::lmer(CDRSB        ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.cdr"]])
+lme.mci.tplus.mmse     <- lmerTest::lmer(MMSE         ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mmse"]])
+lme.mci.tplus.mpacc    <- lmerTest::lmer(mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mpacc"]])
+
+lme.mci.earlyage.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.11"]])
+lme.mci.earlyage.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.cdr"]])
+lme.mci.earlyage.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.mmse"]])
+lme.mci.earlyage.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.mpacc"]])
+
+#AD
+
+lme.ad.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.11"]])
+lme.ad.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.cdr"]])
+summary(lme.ad.cdrsb)
+lme.ad.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.mmse"]])
+lme.ad.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.mpacc"]])
+
+lme.ad.tplus.total11  <- lmerTest::lmer(TOTAL11         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long.tplus[["combined.11"]])
+lme.ad.tplus.cdrsb    <- lmerTest::lmer(CDRSB           ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long.tplus[["combined.cdr"]])
+lme.ad.tplus.mmse        <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long.tplus[["combined.mmse"]])
+lme.ad.tplus.mpacc       <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long.tplus[["combined.mpacc"]])
+
+lme.ad.earlyage.total11  <- lmerTest::lmer(TOTAL11      ~   new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.11"]])
+lme.ad.earlyage.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.cdr"]])
+lme.ad.earlyage.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.mmse"]])
+lme.ad.earlyage.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.mpacc"]])
+
+summary(lme.ad.earlyage.total11)
+
+
+
+#Early AD
+
+lme.early.ad.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long[["combined.11"]])
+lme.early.ad.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long[["combined.cdr"]])
+lme.early.ad.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long[["combined.mmse"]])
+lme.early.ad.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long[["combined.mpacc"]])
+
+lme.early.ad.tplus.total11     <- lmerTest::lmer(TOTAL11       ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long.tplus[["combined.11"]])
+lme.early.ad.tplus.cdrsb       <- lmerTest::lmer(CDRSB         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long.tplus[["combined.cdr"]])
+lme.early.ad.tplus.mmse        <- lmerTest::lmer(MMSE          ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long.tplus[["combined.mmse"]])
+lme.early.ad.tplus.mpacc       <- lmerTest::lmer(mPACCtrailsB  ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.generic.long.tplus[["combined.mpacc"]])
+
+lme.early.ad.earlyage.total11  <- lmerTest::lmer(TOTAL11       ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.earlyage.long[["combined.11"]])
+lme.early.ad.earlyage.cdrsb    <- lmerTest::lmer(CDRSB         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.earlyage.long[["combined.cdr"]])
+lme.early.ad.earlyage.mmse     <- lmerTest::lmer(MMSE          ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.earlyage.long[["combined.mmse"]])
+lme.early.ad.earlyage.mpacc    <- lmerTest::lmer(mPACCtrailsB  ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = early.ad.scen1.earlyage.long[["combined.mpacc"]])
+
+
+g1.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMMSE 24-30 \n"
+g2.mci <- "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n"
+g3.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n"
+
+g1.ad <- "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"
+g2.ad <- "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n"
+g3.ad <- "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n"
+
+
+g1.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n"
+g2.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"
+g3.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n"
+
+
+
+total11.lmes <- list( "MCI A+ CDR = .5 \nAge 65-85  MMMSE 24-30 \n" = lme.mci.total11, 
+                      "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n" = lme.mci.tplus.total11,
+                      "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n" = lme.mci.earlyage.total11,
+                      "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"= lme.ad.total11, 
+                      "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n" = lme.ad.tplus.total11,
+                     "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n" = lme.ad.earlyage.total11,
+                     "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n" = lme.early.ad.total11, 
+                     "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n" = lme.early.ad.tplus.total11,
+                     "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"  = lme.early.ad.earlyage.total11)
+
+
+cdrsb.lmes <- list( "MCI A+ CDR = .5 \nAge 65-85  MMMSE 24-30 \n" = lme.mci.cdrsb, 
+                      "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n" = lme.mci.tplus.cdrsb,
+                      "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n" = lme.mci.earlyage.cdrsb,
+                      "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"= lme.ad.cdrsb, 
+                      "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n" = lme.ad.tplus.cdrsb,
+                      "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n" = lme.ad.earlyage.cdrsb,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n" = lme.early.ad.cdrsb, 
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n" = lme.early.ad.tplus.cdrsb,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"  = lme.early.ad.earlyage.cdrsb)
+
+mmse.lmes <- list( "MCI A+ CDR = .5 \nAge 65-85  MMMSE 24-30 \n" = lme.mci.mmse, 
+                      "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n" = lme.mci.tplus.mmse,
+                      "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n" = lme.mci.earlyage.mmse,
+                      "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"= lme.ad.mmse, 
+                      "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n" = lme.ad.tplus.mmse,
+                      "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n" = lme.ad.earlyage.mmse,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n" = lme.early.ad.mmse, 
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n" = lme.early.ad.tplus.mmse,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"  = lme.early.ad.earlyage.mmse)
+
+mpacc.lmes <- list( "MCI A+ CDR = .5 \nAge 65-85  MMMSE 24-30 \n" = lme.mci.mpacc, 
+                      "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n" = lme.mci.tplus.mpacc,
+                      "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n" = lme.mci.earlyage.mpacc,
+                      "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"= lme.ad.mpacc, 
+                      "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n" = lme.ad.tplus.mpacc,
+                      "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n" = lme.ad.earlyage.mpacc,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n" = lme.early.ad.mpacc, 
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n" = lme.early.ad.tplus.mpacc,
+                      "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"  = lme.early.ad.earlyage.mpacc)
+
+
+
+
+totall11.data <- list(g1.mci = mci.scen1.generic.long[["combined.11"]], 
+                      "mci.tplus" = mci.scen1.generic.long.tplus[["combined.11"]],
+                      "mci.earlyage" = mci.scen1.earlyage.long[["combined.11"]],
+                      "ad" = ad.scen1.generic.long[["combined.11"]], 
+                      "ad.tplus" =ad.scen1.generic.long.tplus[["combined.11"]],
+                      "ad.earlyage" = ad.scen1.earlyage.long[["combined.11"]],
+                      "early.ad" = early.ad.scen1.generic.long[["combined.11"]], 
+                      "early.ad.tplus" = early.ad.scen1.generic.long.tplus[["combined.11"]],
+                      "early.ad.earlyage" = early.ad.scen1.earlyage.long[["combined.11"]])
+
+
+cdrsb.data <- list("mci" = mci.scen1.generic.long[["combined.cdr"]], 
+                      "mci.tplus" = mci.scen1.generic.long.tplus[["combined.cdr"]],
+                      "mci.earlyage" = mci.scen1.earlyage.long[["combined.cdr"]],
+                      "ad" = ad.scen1.generic.long[["combined.cdr"]], 
+                      "ad.tplus" =ad.scen1.generic.long.tplus[["combined.cdr"]],
+                      "ad.earlyage" = ad.scen1.earlyage.long[["combined.cdr"]],
+                      "early.ad" = early.ad.scen1.generic.long[["combined.cdr"]], 
+                      "early.ad.tplus" = early.ad.scen1.generic.long.tplus[["combined.cdr"]],
+                      "early.ad.earlyage" = early.ad.scen1.earlyage.long[["combined.cdr"]])
+
+mmse.data <- list("mci" = mci.scen1.generic.long[["combined.mmse"]], 
+                      "mci.tplus" = mci.scen1.generic.long.tplus[["combined.mmse"]],
+                      "mci.earlyage" = mci.scen1.earlyage.long[["combined.mmse"]],
+                      "ad" = ad.scen1.generic.long[["combined.mmse"]], 
+                      "ad.tplus" =ad.scen1.generic.long.tplus[["combined.mmse"]],
+                      "ad.earlyage" = ad.scen1.earlyage.long[["combined.mmse"]],
+                      "early.ad" = early.ad.scen1.generic.long[["combined.mmse"]], 
+                      "early.ad.tplus" = early.ad.scen1.generic.long.tplus[["combined.mmse"]],
+                      "early.ad.earlyage" = early.ad.scen1.earlyage.long[["combined.mmse"]])
+
+mpacc.data <- list("mci" = mci.scen1.generic.long[["combined.mpacc"]], 
+                      "mci.tplus" = mci.scen1.generic.long.tplus[["combined.mpacc"]],
+                      "mci.earlyage" = mci.scen1.earlyage.long[["combined.mpacc"]],
+                      "ad" = ad.scen1.generic.long[["combined.mpacc"]], 
+                      "ad.tplus" =ad.scen1.generic.long.tplus[["combined.mpacc"]],
+                      "ad.earlyage" = ad.scen1.earlyage.long[["combined.mpacc"]],
+                      "early.ad" = early.ad.scen1.generic.long[["combined.mpacc"]], 
+                      "early.ad.tplus" = early.ad.scen1.generic.long.tplus[["combined.mpacc"]],
+                      "early.ad.earlyage" = early.ad.scen1.earlyage.long[["combined.mpacc"]])
+
+total11sig <- Map(BuildSignificanceTable, total11.lmes)
+cdrsbsig   <- Map(BuildSignificanceTable, cdrsb.lmes)
+mmsesig    <- Map(BuildSignificanceTable, mmse.lmes)
+mpaccsig   <- Map(BuildSignificanceTable, mpacc.lmes)
+
+
+#ADAS 11
+
+Randomize11 <- Map(RandomizeTreatment, totall11.data)
+BuildModels11 <- purrr::map2(total11.lmes, Randomize11, BuildSimulationModel, formula="TOTAL11 ~ new_time*treat + (1|RID)" )
+DiseasePlots11 <- purrr::map2(Randomize11, BuildModels11, SampleSizeSimulation2, formula = "TOTAL11 ~ new_time*treat + (1|RID)", fcompare = "TOTAL11 ~ new_time + (1|RID)",
+                                                          efficacy=.5, breaks=c(100,200,300), yaxislab_dpm="ADAS11", return_dpm=TRUE)
+names(DiseasePlots11) <- names(total11.lmes)
+mcis.11 <- GroupDiseaseTraj(DiseasePlots11[1:3],  yaxislab_dpm="ADAS11")
+ads.11 <- GroupDiseaseTraj(DiseasePlots11[4:6],  yaxislab_dpm="ADAS11")
+early.ads.11 <- GroupDiseaseTraj(DiseasePlots11[7:9],  yaxislab_dpm="ADAS11")
+
+
+#CDRSB
+
+RandomizeCDR <- Map(RandomizeTreatment, cdrsb.data)
+BuildModelsCDR <- purrr::map2(cdrsb.lmes, RandomizeCDR, BuildSimulationModel, formula="CDRSB ~ new_time*treat + (1|RID)" )
+DiseasePlotsCDR <- purrr::map2(RandomizeCDR, BuildModelsCDR, SampleSizeSimulation2, formula = "CDRSB ~ new_time*treat + (1|RID)", fcompare = "CDRSB ~ new_time + (1|RID)",
+                              efficacy=.5, breaks=c(100,200,300), yaxislab_dpm="CDR Sum of Boxes", return_dpm=TRUE)
+names(DiseasePlotsCDR) <- names(cdrsb.lmes)
+mcis.cdr <- GroupDiseaseTraj(DiseasePlotsCDR[1:3],  yaxislab_dpm="CDR Sum of Boxes")
+ads.cdr <- GroupDiseaseTraj(DiseasePlotsCDR[4:6],  yaxislab_dpm="CDR Sum of Boxes")
+early.ads.cdr <- GroupDiseaseTraj(DiseasePlotsCDR[7:9],  yaxislab_dpm="CDR Sum of Boxes")
+
+
+
+#MMSE
+
+Randomizemmse <- Map(RandomizeTreatment, mmse.data)
+BuildModelsmmse <- purrr::map2(mmse.lmes, Randomizemmse, BuildSimulationModel, formula="MMSE ~ new_time*treat + (1|RID)" )
+DiseasePlotsmmse <- purrr::map2(Randomizemmse, BuildModelsmmse, SampleSizeSimulation2, formula = "MMSE ~ new_time*treat + (1|RID)", fcompare = "MMSE ~ new_time + (1|RID)",
+                               efficacy=.5, breaks=c(100,200,300), yaxislab_dpm="MMSE", return_dpm=TRUE)
+names(DiseasePlotsmmse) <- names(mmse.lmes)
+mcis.mmse <- GroupDiseaseTraj(DiseasePlotsmmse[1:3],  yaxislab_dpm="MMSE")
+ads.mmse <- GroupDiseaseTraj(DiseasePlotsmmse[4:6],  yaxislab_dpm="MMSE")
+early.ads.mmse <- GroupDiseaseTraj(DiseasePlotsmmse[7:9],  yaxislab_dpm="MMSE")
+
+
+#mPACC
+
+Randomizempacc <- Map(RandomizeTreatment, mpacc.data)
+BuildModelsmpacc <- purrr::map2(mpacc.lmes, Randomizempacc, BuildSimulationModel, formula="mPACCtrailsB ~ new_time*treat + (1|RID)" )
+DiseasePlotsmpacc <- purrr::map2(Randomizempacc, BuildModelsmpacc, SampleSizeSimulation2, formula = "mPACCtrailsB ~ new_time*treat + (1|RID)", fcompare = "mPACCtrailsB ~ new_time + (1|RID)",
+                                efficacy=.5, breaks=c(100,200,300), yaxislab_dpm="mPACCtrailsB", return_dpm=TRUE)
+names(DiseasePlotsmpacc) <- names(mpacc.lmes)
+mcis.mpacc <- GroupDiseaseTraj(DiseasePlotsmpacc[1:3],  yaxislab_dpm="mPACCtrailsB")
+ads.mpacc <- GroupDiseaseTraj(DiseasePlotsmpacc[4:6],  yaxislab_dpm="mPACCtrailsB")
+early.ads.mpacc <- GroupDiseaseTraj(DiseasePlotsmpacc[7:9],  yaxislab_dpm="mPACCtrailsB")
+
+
+
+savedpmlist <- list("ADAS" = list("MCI" = mcis.11,
+                                  "AD" = ads.11,
+                                  "Early AD" = early.ads.11),
+                    "CDRSB"= list("MCI" = mcis.cdr,
+                                  "AD" = ads.cdr,
+                                  "Early AD" = early.ads.cdr),
+                    "MMSE"= list("MCI" = mcis.mmse,
+                                  "AD" = ads.mmse,
+                                  "Early AD" = early.ads.mmse),
+                    "mPACCtrailsB"= list("MCI" = mcis.mpacc,
+                                 "AD" = ads.mpacc,
+                                 "Early AD" = early.ads.mpacc))
+
+
+saveRDS(savedpmlist, "/Users/adamgabriellang/Desktop/clinical_trial_sim/save_ptau_and_total/save_dpms.rds")
+
+
+
+
+
+
 
 
 

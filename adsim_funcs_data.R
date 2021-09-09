@@ -40,14 +40,32 @@ TimeSinceBaseline <- function(data, timecol) {
 }
 
 
+Baseline <- function(data) {
+  subjlist <- split(data, data$RID)
+  return.list <- list()
+  
+  for(i in 1:length(subjlist)) {
+    subj <- subjlist[[i]]
+    subj <- subj[order(subj$M_vis, decreasing = FALSE),]
+    subj$new_time <- subj$M_vis - min(subj$M_vis)
+    return.list[[i]] <- subj
+  }
+  return.list <- do.call(rbind, return.list)
+  return(return.list)
+}
+
+makefactor <- function(data) {
+  data$RID <- factor(data$RID)
+  return(data)
+}
 
 TimeSinceBaselineValidAmy <- function(data, timecol) {
   subjlist <- split(data, data$RID)
   return.list <- list()
   for(i in 1:length(subjlist)) {
     subj <- subjlist[[i]]
-    if(!all(is.na(subj$AmyPos))) {
-    val.amy   <- which(!is.na(subj$AmyPos))
+    if(!all(is.na(subj$AmyPos_full))) {
+    val.amy   <- which(!is.na(subj$AmyPos_full))
     min.index <- min(val.amy)
     time.min  <- min(subj[timecol][val.amy,])
     subj$new_time <- subj[[timecol]] - time.min
@@ -277,8 +295,8 @@ SampleSizeSimulation <- function(sim.data, formula, fcompare_str, efficacy=.5, b
 
 GroupDiseaseTraj <- function(sim.list, yaxislab_dpm) {
   firstelement <- sim.list[[1]]
-  model<- firstelement$model
-  names1 <- c(names(sim.list)[1])
+  model      <- firstelement$model
+  names1     <- c(names(sim.list)[1])
   plot.data  <- firstelement$disease_progression_plot$data
   total.rids <- nlevels(factor(plot.data$RID))
   firstfail  <- paste(total.rids, " Subjects ","(Reference Group) \n", sep="")
@@ -302,13 +320,13 @@ GroupDiseaseTraj <- function(sim.list, yaxislab_dpm) {
     screen.fail[[i]] <- paste(nrids, " Subjects ", "(", round(((total.rids - nrids) / total.rids) * 100, 2), "% failure rate)", sep="")
     
   }
-  names(screen.fail) <- names(sim.list)
+  names(screen.fail) <- cat(names(sim.list))
   plot.data$Treatment <- plot.data$treat
   plot.data$Enrichment <- plot.data$group
   
   gplot <- ggplot(plot.data, aes(y=predicted, x=new_time, colour=Enrichment, linetype = Treatment)) + geom_smooth(method = "lm", aes(fill=Enrichment), alpha=.1) 
   gplot <- gplot  + xlab("Time (Months)") + ylab(yaxislab_dpm)
-  return(list("plot"=gplot, "screenfail"=screen.fail))
+  return(list("plot"=gplot, "screenfail"= screen.fail))
 }
 
 
@@ -337,10 +355,16 @@ CombineSimPlots <- function(power.list, limits) {
 
 QuickAdjust <- function(data) {
   data$RID <- factor(data$RID)
-  data <- TimeSinceBaselineValidAmy(data, "M_vis")
+  data <- data[order(data$RID, data$M_vis, decreasing = FALSE),]
+  data <- TimeSinceBaseline(data, "M_vis")
   data <- subset(data, new_time <= 24)
   }
 
+Sub24 <- function(data) {
+  data <- subset(data, new_time <= 24)
+  data$RID <- factor(data$RID)
+  return(data)
+}
 
 BuildSignificanceTable <- function(model) {
   summodel<-summary(model)
@@ -438,4 +462,182 @@ BuildNeuroPatDistrImp <- function(model) {
                             "SD"             =  sds)
   return(returnframe)
   
+}
+
+
+
+RandomizeTreatment <- function(data) {
+  full.data    <- data
+  sim.data     <- data
+  sim.data     <- subset(sim.data, new_time==0)
+  sim.data$RID <- factor(sim.data$RID)
+  all.rids   <- levels(sim.data[["RID"]])
+  nrids      <- nlevels(sim.data[["RID"]])
+  n.sample   <- round(nrids/2)
+  treat.rids <- sample(all.rids, n.sample, prob = rep(.5, length(all.rids)), replace = FALSE)
+  base.rids  <- subset(all.rids, all.rids %notin% treat.rids)
+  full.data$treat <- rep(NA, nrow(full.data))
+  treat.rows     <- which(full.data$RID %in% treat.rids)
+  base.rows      <- which(full.data$RID %in% base.rids)
+  full.data["treat"][treat.rows,] <- 1
+  full.data["treat"][base.rows,]  <- 0
+  full.data$treat <- factor(full.data$treat)
+  sim.data     <- subset(full.data, new_time==0)
+  sim.data$RID <- factor(sim.data$RID)  
+  data.contr <- subset(sim.data, treat==0)
+  data.treat <- subset(sim.data, treat==1)
+  lewy <- c(length(which(data.contr$fulllewy  ==0)), length(which(data.treat$fulllewy==0)))
+  tdp  <- c(length(which(data.contr$fulltdp43 ==0)), length(which(data.treat$fulltdp43==0)))
+  caa  <- c(length(which(data.contr$fullcaa   ==0)), length(which(data.treat$fullcaa==0)))
+  n.compare <- rep(nrow(sim.data), 2)
+  #proplist <- list("lewy" = prop.test(x=lewy, n=n.compare),
+  #                 "tdp" = prop.test(x=tdp, n=n.compare),
+  #                 "caa" = prop.test(x=caa, n=n.compare))
+  
+  return(full.data)
+}
+
+
+
+SampleSizeSimulation2 <- function(sim.data, formula, fcompare_str, efficacy=.5, breaks, yaxislab_dpm, model, return_dpm=FALSE) {
+  #build contrast progression plot
+  #base.rows <- which(sim.data$treat == 0)
+  #treat0 <- sim.data[base.rows, ]
+  #treat1 <- treat0
+  #treat1$treat <- 1
+  #plot.data <- rbind(treat0, treat1)
+  placebo <- expand.grid("RID"=levels(factor(sim.data$RID)), "new_time"=c(0,6,12,18,24))
+  placebo <- placebo[order(placebo$RID, placebo$new_time, decreasing = FALSE),]
+  placebo$treat <- rep(0, nrow(placebo))
+  placebo$treat <- factor(placebo$treat)
+  placebo$prediction <- predict(model, placebo)
+  treatgroup <- expand.grid("RID"=levels(factor(sim.data$RID)), "new_time"=c(0,6,12,18,24))
+  treatgroup <- treatgroup[order(treatgroup$RID, treatgroup$new_time, decreasing = FALSE),]
+  treatgroup$treat <- rep(1, nrow(treatgroup))
+  treatgroup$treat <- factor(treatgroup$treat)
+  treatgroup$prediction <- predict(model, treatgroup)
+  plot.data <- rbind(placebo, treatgroup)
+  plot.data$treat <- factor(plot.data$treat)
+  plot.data$prediction <- predict(model, plot.data)
+  plot.disease.contr <- ggplot(plot.data, aes(x=new_time, y=prediction, colour=treat)) + geom_smooth(method = "lm")
+  plot.disease.contr <- plot.disease.contr + scale_x_discrete(name = "Time (Months)", limits=c(0, 6, 12, 18, 24)) + ylab(yaxislab_dpm) + labs(colour="Treatment")
+  if(return_dpm) {
+    return(list("model" = model,
+                "disease_progression_plot"=plot.disease.contr))
+  }
+  
+  sim_ext_rid        <- simr::extend(model, along="RID", n=max(breaks))
+  p_curve_treat_sim  <- powerCurve(sim_ext_rid, test=fcompare(as.formula(fcompare_str)), along="RID", breaks=breaks)
+  summ_sim           <- summary(p_curve_treat_sim)
+  summ_sim$mean      <- summ_sim$mean*100
+  summ_sim$lower     <- summ_sim$lower*100
+  summ_sim$upper     <- summ_sim$upper*100
+  gplot.sim          <- ggplot(data = summ_sim, aes(x=nlevels, y=mean)) +geom_errorbar(aes(ymin=lower, ymax=upper)) + geom_line() + geom_point() + scale_x_discrete(limits=breaks)
+  gplot.sim          <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)")
+  return.list        <- list("model"                    = model,
+                             "power_curve_output"       = p_curve_treat_sim,
+                             "summary_stats"            = summ_sim,
+                             "power_curve_plot"         = gplot.sim,
+                             "disease_progression_plot" = plot.disease.contr)
+  return(return.list)
+}
+
+
+BuildSimulationModel <- function(model, formula.model, data) {
+  fixd       <- fixef(model)
+  fixd       <- fixd[c("(Intercept)","new_time")]
+  fixd["treat1"] <- 0
+  fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
+  sigma.mod        <- summary(model)$sigma
+  varcor.mod       <- as.numeric(summary(model)$varcor[[1]])
+  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=list(varcor.mod), sigma = sigma.mod, data = data)
+  return(constr.lme)
+}
+
+
+BuildSignificanceTable <- function(model) {
+  list.names <- list("AGE_bl" = "Age (Baseline)", 
+                     "PTGENDER_blMale" = "Gender (Male)",
+                     "PTEDUCAT_bl" ="Education Years (Baseline)",
+                     "fulllewy1" = "Lewy body",
+                     "fullcaa1"  = "CAA",
+                     "fulltdp431" = "TDP43",
+                     "AmyPos_bl1" = "Amyloid",
+                     "ptau_pos_bl1" = "Tau",
+                     "Amy_pos_path1" = "Amyloid",
+                     "TAU_pos_path1" = "Tau",
+                     "new_time"      = "Mean Rate",
+                     "new_time:fulllewy1" = "Lewy body (Rate)",
+                     "new_time:fullcaa1"  = "CAA (Rate)",
+                     "new_time:fulltdp431" = "TDP43 (Rate)",
+                     "(Intercept)" = "Intercept")
+  summodel<-summary(model)
+  coefdf <- summodel$coefficients
+  coefdf <- coefdf[,c(1,2,4,5)]
+  coefdf <- as.data.frame(coefdf)
+  coefdf$Significant <- rep("", nrow(coefdf))
+  for(i in 1:nrow(coefdf)) {
+    if(coefdf[4][i,] > .05) {
+    } else if(coefdf[4][i,] <= .05 & coefdf[4][i,] > 0.01) {
+      coefdf["Significant"][i,] <- "*"
+    } else if(coefdf[4][i,] <= .01 & coefdf[4][i,] > 0.001) {
+      coefdf["Significant"][i,] <- "**"
+    } else if(coefdf[4][i,] <= .001) {
+      coefdf["Significant"][i,] <- "***"
+    }
+  }
+  rownames(coefdf) <- list.names[rownames(coefdf)]
+  return(coefdf)
+}
+
+
+
+KeepCols <- function(data, cols) {
+  return(data[,cols])
+}
+
+BuildDescTable <- function(data, columns, split=FALSE) {
+  data <- data[,columns]
+  result <- table1(data[,columns])$Table1
+  return(result)
+}
+
+
+
+ZscoreAdj <- function(data, col_names) {
+  colsdata <- colnames(data)
+  zvarcols <- paste(col_names, "_zscore", sep="")
+  for(i in col_names) {
+    bline <- subset(data, M_vis==0)
+    zvar.mean <- mean(bline[[i]])
+    zvar.sd <- sd(bline[[i]])
+    zvar <- (data[[i]] - zvar.mean) / zvar.sd
+    data <- cbind(data, zvar)
+  }
+  colnames(data) <- c(colsdata, zvarcols)
+  return(data)
+}
+
+
+RandomizeTreatment2 <- function(data, stratcolumns) {
+  stratifydf     <- data[,c("RID", stratcolumns)]
+  stratifieddata <- stratified(stratifydf, group = stratcolumns, size = c(.5))
+  treatmentrids  <- unique(stratifieddata$RID)
+  control.rids   <- data["RID"][which(data$RID %notin% stratifieddata$RID),]
+  rids.list <- list("treatment_rids" = treatmentrids,
+                    "placebo_rids"   = control.rids)
+  return(rids.list)
+}
+
+
+StratifyContVar <- function(data, stratcols) {
+  for(i in stratcols) {
+    var <- data[,i]
+    qt <- quantile(var)
+    qt[1] <- 0
+    groupingvar <- cut(var, breaks = qt, labels=c(1,2,3,4))
+    stratname <- paste(i, "_strat", sep="")
+    data[stratname] <- factor(as.character(groupingvar))
+  }
+  return(data)
 }
