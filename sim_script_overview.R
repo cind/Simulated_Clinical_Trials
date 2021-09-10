@@ -37,7 +37,7 @@ library(stringr)
 library(matrixStats)
 library(lmerTest)
 library(splitstackshape)
-
+library(purrr)
 #CDR
 cdr_global           <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
 cdr_global$EXAMDATE  <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
@@ -57,9 +57,9 @@ imaging_simulation_data <- read.csv("/Users/adamgabriellang/Desktop/clinical_tri
 #ADAS
 adas_scores_1   <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
 adas_scores_23  <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADAS_ADNIGO23.csv")
-adas_scores_1   <- adas_scores_1[,c("RID", "VISCODE",  "TOTAL11")]
-adas_scores_23  <- adas_scores_23[,c("RID", "VISCODE2", "TOTSCORE")]
-colnames(adas_scores_23) <- c("RID", "VISCODE", "TOTAL11")
+adas_scores_1   <- adas_scores_1[,c("RID", "VISCODE",  "TOTAL11", "TOTALMOD")]
+adas_scores_23  <- adas_scores_23[,c("RID", "VISCODE2", "TOTSCORE", "TOTAL13")]
+colnames(adas_scores_1) <- colnames(adas_scores_23) <- c("RID", "VISCODE", "TOTAL11", "TOTAL13")
 adas_scores              <- rbind(adas_scores_1, adas_scores_23)
 adas_scores              <- adas_scores[order(adas_scores$RID, 
                                               adas_scores$VISCODE, 
@@ -192,7 +192,7 @@ adas_merge_demog["M_vis"][which(adas_merge_demog$VISCODE=="bl"), ] <- 0
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
 adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
 baseline.var.list <- c("DX","AGE", "PTGENDER", "PTEDUCAT", 
-                       "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", 
+                       "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", "TOTAL11", "TOTAL13", 
                        "ABETA", "TAU", "PTAU", "AmyPos","ptau_pos", "CDGLOBAL", "ADNI_MEM", "ADNI_EF")
 adas_merge_demog$DX <- as.character(adas_merge_demog$DX)
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
@@ -207,8 +207,12 @@ baseline.var.list <- paste(baseline.var.list, "_bl", sep="")
 
 # All neuropathology data for checking effect size of neurpats on outcome 
 
+write.csv(adas_merge_demog, "/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/final_merged_data_4sim.csv")
+
+
 aut.rows <- which(complete.cases(adas_merge_demog[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
                                                                     "NPLBOD", "NPAMY")]))
+
 
 
 imputed.rows <- which(complete.cases(adas_merge_demog[,c("TDP43", "LEWY", "CAA")]))
@@ -263,7 +267,10 @@ testneurodata <- all.neuropat.bl[,c("RID", "PTEDUCAT_bl", "PTGENDER_bl", "fullle
 testneurodata <- StratifyContVar(testneurodata, stratcols =  c("PTEDUCAT_bl",  "AGE_bl"))
 testneurodata.rids <- RandomizeTreatment2(testneurodata, stratcolumns = c("PTEDUCAT_bl_strat", "PTGENDER_bl", "fulllewy", 
                                                                           "fulltdp43", "fullcaa", 
-                                                                          "AGE_bl_strat"))
+                                                                          "AGE_bl_strat"), longdata = all.neuropat)
+
+
+
 
 
 
@@ -436,15 +443,15 @@ necc.cols.mmse  <- c("RID", "M_vis", "MMSE")
 necc.cols.mpacc <- c("RID", "M_vis", "mPACCtrailsB")
 necc.cols.mem   <- c("RID", "M_vis", "ADNI_MEM", "ADNI_EF")
 
-all.neuropat$RID          <- factor(all.neuropat$RID)
-all.neuropat$fulllewy     <- factor(all.neuropat$fulllewy)
-all.neuropat$fulltdp43    <- factor(all.neuropat$fulltdp43)
-all.neuropat$fullcaa         <- factor(all.neuropat$fullcaa)
+all.neuropat$RID               <- factor(all.neuropat$RID)
+all.neuropat$fulllewy          <- factor(all.neuropat$fulllewy)
+all.neuropat$fulltdp43         <- factor(all.neuropat$fulltdp43)
+all.neuropat$fullcaa           <- factor(all.neuropat$fullcaa)
 all.neuropat$AmyPos_full_bl    <- factor(all.neuropat$AmyPos_full_bl)
 all.neuropat$TauPos_full_bl    <- factor(all.neuropat$TauPos_full_bl)
-all.neuropat$Amy_pos_path <- factor(all.neuropat$Amy_pos_path)
-all.neuropat$TAU_pos_path <- factor(all.neuropat$TAU_pos_path)
-all.neuropat$PTGENDER     <- factor(all.neuropat$PTGENDER)
+all.neuropat$Amy_pos_path      <- factor(all.neuropat$Amy_pos_path)
+all.neuropat$TAU_pos_path      <- factor(all.neuropat$TAU_pos_path)
+all.neuropat$PTGENDER          <- factor(all.neuropat$PTGENDER)
 
 
 combined.11    <- all.neuropat[complete.cases(all.neuropat[,necc.cols.t11]),]
@@ -497,6 +504,9 @@ lme.control.combined.total11 <- lmerTest::lmer(TOTAL11      ~ new_time + PTEDUCA
 lme.control.combined.cdrsb   <- lmerTest::lmer(CDRSB        ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.cdr"]])
 lme.control.combined.mmse    <- lmerTest::lmer(MMSE         ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mmse"]])
 lme.control.combined.mpacc   <- lmerTest::lmer(mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mpacc"]])
+lme.control.combined.mem     <- lmerTest::lmer(ADNI_MEM     ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mem"]])
+lme.control.combined.ef      <- lmerTest::lmer(ADNI_MEM     ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.mem"]])
+lme.control.combined.total13 <- lmerTest::lmer(TOTAL13      ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  (1|RID), data = control.cohort.long[["combined.13"]])
 
 
 #MCI
@@ -506,11 +516,10 @@ lme.mci.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_
 lme.mci.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.generic.long[["combined.mpacc"]])
 
 
-lme.mci.tplus.total11  <- lmerTest::lmer(TOTAL11      ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.11"]])
-
-lme.mci.tplus.cdrsb    <- lmerTest::lmer(CDRSB        ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.cdr"]])
-lme.mci.tplus.mmse     <- lmerTest::lmer(MMSE         ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mmse"]])
-lme.mci.tplus.mpacc    <- lmerTest::lmer(mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+  fulllewy*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fullcaa*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ fulltdp43*new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl+ (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mpacc"]])
+lme.mci.tplus.total11  <- lmerTest::lmer(TOTAL11      ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID),  data = mci.scen1.generic.long.tplus[["combined.11"]])
+lme.mci.tplus.cdrsb    <- lmerTest::lmer(CDRSB        ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID),  data = mci.scen1.generic.long.tplus[["combined.cdr"]])
+lme.mci.tplus.mmse     <- lmerTest::lmer(MMSE         ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mmse"]])
+lme.mci.tplus.mpacc    <- lmerTest::lmer(mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID),  data = mci.scen1.generic.long.tplus[["combined.mpacc"]])
 
 lme.mci.earlyage.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.11"]])
 lme.mci.earlyage.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = mci.scen1.earlyage.long[["combined.cdr"]])
@@ -521,7 +530,6 @@ lme.mci.earlyage.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_
 
 lme.ad.total11  <- lmerTest::lmer(TOTAL11      ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.11"]])
 lme.ad.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.cdr"]])
-summary(lme.ad.cdrsb)
 lme.ad.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.mmse"]])
 lme.ad.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.generic.long[["combined.mpacc"]])
 
@@ -535,7 +543,6 @@ lme.ad.earlyage.cdrsb    <- lmerTest::lmer(CDRSB        ~  new_time + PTEDUCAT_b
 lme.ad.earlyage.mmse     <- lmerTest::lmer(MMSE         ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.mmse"]])
 lme.ad.earlyage.mpacc    <- lmerTest::lmer(mPACCtrailsB ~  new_time + PTEDUCAT_bl + AGE_bl +PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)  ,  data = ad.scen1.earlyage.long[["combined.mpacc"]])
 
-summary(lme.ad.earlyage.total11)
 
 
 
