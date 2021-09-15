@@ -1,4 +1,3 @@
-library(purrr)
 full.merged.data <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/final_merged_data_4sim.csv")
 
 aut.rows <- which(complete.cases(full.merged.data[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
@@ -83,7 +82,7 @@ full.data.list <- Map(QuickAdjust, full.data.list)
 full.data.list <- map2(full.data.list, c("TOTAL11", "TOTAL13", "CDRSB","MMSE", "mPACCtrailsB", "ADNI_MEM", "ADNI_EF"), ZscoreAdj)
 
 
-control.cohort                     <- lapply(full.data.list, function(x)  subset(x, new_time==0 &  DX_bl=="CN" & AmyPos_full_bl==0 & TauPos_full_bl == 0 & CDGLOBAL_bl == 0 & fulllewy == 0 & fulltdp43 == 0 & fullcaa == 0))
+control.cohort                     <- lapply(full.data.list, function(x)  subset(x, new_time==0 &  AGE_bl >= 65 & AGE_bl <= 85 & DX_bl=="CN" & AmyPos_full_bl==0 & TauPos_full_bl == 0 & CDGLOBAL_bl == 0 & fulllewy == 0 & fulltdp43 == 0 & fullcaa == 0 & MMSE_bl >=24 & MMSE_bl <= 30))
 control.cohort.long                <- purrr::map2(control.cohort, full.data.list, PullLongData)
 
 mci.scen1.generic                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
@@ -94,17 +93,17 @@ mci.scen1.generic.long             <- purrr::map2(mci.scen1.generic, full.data.l
 mci.scen1.generic.long.tplus       <- purrr::map2(mci.scen1.generic.tplus, full.data.list, PullLongData)
 mci.scen1.earlyage.long            <- purrr::map2(mci.scen1.earlyage, full.data.list, PullLongData)
 
-early.ad.scen1.generic            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
-early.ad.scen1.generic.tplus      <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
-early.ad.scen1.earlyage           <- lapply(full.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl >=55 & AGE_bl <= 65 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.generic            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.generic.tplus      <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.earlyage           <- lapply(full.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl >=55 & AGE_bl <= 65 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
 
 early.ad.scen1.generic.long        <- purrr::map2(early.ad.scen1.generic, full.data.list, PullLongData)
 early.ad.scen1.generic.long.tplus  <- purrr::map2(early.ad.scen1.generic.tplus, full.data.list, PullLongData)
 early.ad.scen1.earlyage.long       <- purrr::map2(early.ad.scen1.earlyage, full.data.list, PullLongData)
 
-ad.scen1.generic                   <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=65 & AGE_bl <= 85))
-ad.scen1.generic.tplus             <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & TauPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=65 & AGE_bl <= 85))
-ad.scen1.earlyage                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE_bl >=55 & AGE_bl <= 65))
+ad.scen1.generic                   <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85))
+ad.scen1.generic.tplus             <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & TauPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85))
+ad.scen1.earlyage                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=55 & AGE_bl <= 65))
 
 ad.scen1.generic.long              <- purrr::map2(ad.scen1.generic, full.data.list, PullLongData)
 ad.scen1.generic.long.tplus        <- purrr::map2(ad.scen1.generic.tplus, full.data.list, PullLongData)
@@ -123,6 +122,7 @@ baseline.enriched.data  <- list("mci"              = mci.scen1.generic,
                                 "ad"               = ad.scen1.generic,
                                 "ad.tplus"         = ad.scen1.generic.tplus,
                                 "ad.earlyage"      = ad.scen1.earlyage)
+
 
 
 full.enriched.data <- list("mci"              = mci.scen1.generic.long,
@@ -204,6 +204,7 @@ for(i in 1:length(full.enriched.data)) {
 names(enriched.models.list) <- names(full.enriched.data)
 
 
+
 #remove effect of healthy aging
 adjusted.lmes <- list()
 for(i in 1:length(full.enriched.data)) {
@@ -234,7 +235,6 @@ for(i in 1:length(adjusted.lmes)) {
 }
 names(boyle.adjusted.list) <- names(full.enriched.data)
 
-summary(boyle.adjusted.list$mci$ADAS11)
 
 
 #create models for simulation
@@ -250,45 +250,80 @@ names(simulation.model.list) <- names(full.enriched.data)
 
 
 
-mci.adas13 <- SampleSizeSimulation2(sim.data = treatment.enrichment.list$mci$ADAS13, 
-formula = simulation.formulas$ADAS13, 
-fcompare_str = "TOTAL13_zscore ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + fulllewy*new_time + fullcaa*new_time + fulltdp43*new_time + (1|RID)", 
-breaks= seq(100, 1000, by=100), 
-                      yaxislab_dpm="ADAS13",
-model = simulation.model.list$mci$ADAS13,
-return_dpm = FALSE)
+
+
 
 
 list_for_modeling <- list("treatment.enrichment.list"  = treatment.enrichment.list,
                           "simulation.formulas"        = simulation.formulas,
+                          "enrichment.formulas"        = enrichment.formulas,
                           "simulation.model.list"      = simulation.model.list)
 
 
-saveRDS(list_for_modeling, "/Users/adamgabriellang/Desktop/clinical_trial_sim/list_for_modeling.rds")
+#saveRDS(list_for_modeling, "/Users/adamgabriellang/Desktop/clinical_trial_sim/list_for_modeling.rds")
+saveRDS(list_for_modeling, "/Users/adamgabriellang/Desktop/clinical_trial_sim/list_for_modeling_minus_control.rds")
+saveRDS(control.models.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/control_models.rds")
 
-
-
+objects.for.sim           <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/list_for_modeling_minus_control.rds")
+treatment.enrichment.list <- objects.for.sim$treatment.enrichment.list
+simulation.formulas       <- objects.for.sim$simulation.formulas
+simulation.model.list     <- objects.for.sim$simulation.model.list
+enrichment.formulas       <- objects.for.sim$enrichment.formulas
 # to simulate all models
-if(FALSE) {
+simrOptions(nsim=10)
 all.sims <- list()
 for(i in 1:length(treatment.enrichment.list)) {
   sublist <- treatment.enrichment.list[[i]]
   sub.sim <- list()
   for(j in 1:length(sublist)) {
     df  <- sublist[[j]]
+    print(paste(names(treatment.enrichment.list[i]), names(enrichment.formulas)[j], sep="_"))
     sim <- SampleSizeSimulation2(sim.data = df, 
-                          formula = simulation.formulas[j], 
-                          fcompare_str = enrichment.formulas[j], 
+                          formula      = simulation.formulas[[j]],
+                          compare_str  = enrichment.formulas[[j]],
                           breaks       = seq(100, 1000, by=100), 
                           yaxislab_dpm = names(enrichment.formulas)[j],
                           model = simulation.model.list[[i]][[j]],
-                          return_dpm = FALSE)
+                          return_dpm = TRUE)
+    sub.sim[[j]] <- sim
     
   }
   all.sims[[i]] <- sub.sim
   names(all.sims[[i]]) <- names(enrichment.formulas)
 }
-names(all.sims) <- names(full.enriched.data)
-}
+names(all.sims) <- names(treatment.enrichment.list)
 
-View(treatment.enrichment.list)
+allsimulationspt1 <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimspt1.rds")
+allsimulationspt2 <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimspt2.rds")
+allsimulationspt3 <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimspt3.rds")
+allsimulationspt4 <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimspt4.rds")
+
+allsimulationspt1 <- allsimulationspt1[1:2]
+allsimulationspt2 <- allsimulationspt2[c(3,4)]
+allsimulationspt3 <- allsimulationspt3[c(5,6)]
+allsimulationspt4 <- allsimulationspt4[c(7,8,9)]
+
+allsimulations <- list()
+allsimulations[[1]] <- allsimulationspt1[[1]]
+allsimulations[[2]] <- allsimulationspt1[[2]]
+
+allsimulations[[3]] <- allsimulationspt2[[1]]
+allsimulations[[4]] <- allsimulationspt2[[2]]
+
+allsimulations[[5]] <- allsimulationspt3[[1]]
+allsimulations[[6]] <- allsimulationspt3[[2]]
+
+allsimulations[[7]] <- allsimulationspt4[[1]]
+allsimulations[[8]] <- allsimulationspt4[[2]]
+allsimulations[[9]] <- allsimulationspt4[[3]]
+
+names(allsimulations) <- names(full.enriched.data)
+saveRDS(allsimulations, "/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimulations.rds")
+saveRDS(all.sims, "/Users/adamgabriellang/Desktop/clinical_trial_sim/allsimulations_dpm.rds")
+
+
+
+
+trylmercontrol <- lmerTest::lmer(formula = as.formula("TOTAL11_zscore  ~ new_time  +  (1|RID)"),
+                             data=full.control.data$control$ADAS11)
+summary(trylmercontrol)
