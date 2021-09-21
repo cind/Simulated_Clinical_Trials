@@ -23,6 +23,21 @@
 #CSFPTAU cutpoint  >= 24
 #PETAMY cutpooint  >= .78
 
+
+
+feature.correction <- function(training.data,  data, formula, cr.feat1, feat) {
+  model <- lm(formula = as.formula(formula), data = training.data)
+  mean.val1 <- mean(training.data[[cr.feat1]])
+  mean.val1 <- rep(mean.val1, nrow(data))
+  coef.correction1 <- model$coefficients[[cr.feat1]]
+  new.feat <- data[[feat]]
+  new.feat <- (new.feat - (coef.correction1*data[[cr.feat1]]))
+  new.feat <- new.feat  + (coef.correction1*mean.val1)
+  return(new.feat)
+}
+
+
+
 source.script <- FALSE
 library(zoo)
 #library(simstudy)
@@ -38,6 +53,7 @@ library(matrixStats)
 library(lmerTest)
 library(splitstackshape)
 library(purrr)
+library(ggplot2)
 #CDR
 cdr_global           <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
 cdr_global$EXAMDATE  <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
@@ -202,6 +218,45 @@ for(i in baseline.var.list) {
   adas_merge_demog <- CreateBaselineVar(adas_merge_demog, "M_vis", i)
 }
 baseline.var.list <- paste(baseline.var.list, "_bl", sep="")
+
+
+
+adas_merge_demog$image_remerging <- 1:nrow(adas_merge_demog)
+image_columns <- grep("_harmonized", colnames(adas_merge_demog), value = TRUE)
+image_data_for_adj <- adas_merge_demog[,c("RID", "DX_bl", "AGE_bl", "PTGENDER", "AmyPos_bl", image_columns, "image_remerging")]
+image_data_for_adj <- na.omit(image_data_for_adj)
+image_data_for_adj$Baseline <- !duplicated(image_data_for_adj$RID)
+image_data_for_adj["x1"] <- 5
+icv.training <- subset(image_data_for_adj, Baseline==TRUE & DX_bl=="CN" & AmyPos_bl==0)
+image_columns <- image_columns[!image_columns=="ST10CV_harmonized"]
+
+
+for(i in image_columns) {
+  correction_formula <- paste(i, "~ AGE_bl + PTGENDER + ST10CV_harmonized", sep=" ")
+  corrected_name <- paste(i, "icv_adj", sep="_")
+  corrected_feature  <- feature.correction(training.data = icv.training,
+                                           data = image_data_for_adj,
+                                           formula = correction_formula,
+                                           cr.feat1 = "ST10CV_harmonized",
+                                           feat = i)
+  image_data_for_adj[corrected_name] <- corrected_feature
+}
+
+image_columns.adj <- grep("_harmonized_icv_adj", colnames(image_data_for_adj), value = TRUE)
+imaging_to_remerge <- image_data_for_adj[,c(image_columns.adj, "image_remerging")]
+adas_merge_demog <- merge(adas_merge_demog, imaging_to_remerge, by="image_remerging", all.x = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

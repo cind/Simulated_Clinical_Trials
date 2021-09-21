@@ -9,7 +9,6 @@
 #right fusiform         ST85CV
 
 
-
 #LeftLateralVentricle (ST37); 
 #RightLateralVentricle (ST96); 
 #LeftInferiorLateralVentricle (ST30); 
@@ -21,8 +20,8 @@
 #RightChoroidPlexus (ST80)
 
 #CSFABETA cutpoint <= 980
-#CSFPTAU cutpoint >= 24
-#PETAMY cutpooint >= .78
+#CSFPTAU cutpoint  >= 24
+#PETAMY cutpooint  >= .78
 
 vol.ims <- c("ST103CV", "ST44CV", "ST29SV", "ST88SV", "ST10CV", 
              "ST24CV", "ST32CV", "ST40CV", 
@@ -42,6 +41,7 @@ library(nlme)
 library(simr)
 #library(MargCond)
 library(stringr)
+library(matrixStats)
 cdr_global      <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
 cdr_global$EXAMDATE <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
 cdr_global          <- cdr_global[order(cdr_global$RID, cdr_global$EXAMDATE, decreasing = FALSE), ]
@@ -186,8 +186,6 @@ adas_merge_demog["M_vis"][which(adas_merge_demog$VISCODE=="bl"), ] <- 0
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
 adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
 
-
-
 baseline.var.list <- c("DX","AGE", "PTGENDER", "PTEDUCAT", 
                        "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", 
                        "ABETA", "TAU", "PTAU", "AmyPos", "ptau_pos", "CDGLOBAL" )
@@ -256,11 +254,14 @@ image.neuropath.outcome <- adas_merge_demog[,c("RID", "VISCODE", "DX", "COLPROT"
                                           "ABETA", "TAU", "PTAU", "SUMMARYSUVR_COMPOSITE_REFNORM","CDRSB", "MMSE", "AmyPos","ptau_pos","TDP43", "LEWY", "CAA",
                                           "NPBRAAK", "NPNEUR","NPTDPA", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
                                           "NPLBOD", "NPAMY", "fulllewy", "fulltdp43", "fullcaa")]
+
+
+
 image.neuropath.outcome <- image.neuropath.outcome[neuropath.outcome.rows,]
 keeprows.neuro          <- intersect(which(!is.na(image.neuropath.outcome$DX)), which(!is.na(image.neuropath.outcome$ST103CV)))
 image.neuropath.outcome <- image.neuropath.outcome[keeprows.neuro, ]
-
 adas.neuropath.outcome  <- SetNeuroData(adas.neuropath.outcome)
+
 for(i in 1:nrow(adas.neuropath.outcome)) {
   if(!is.na(adas.neuropath.outcome["TDP_pos_path"][i,])) {
     adas.neuropath.outcome["fulltdp43"][i,] <- adas.neuropath.outcome["TDP_pos_path"][i,]
@@ -283,8 +284,7 @@ for(i in 1:nrow(adas.neuropath.outcome)) {
 }
 
 
-
-mem.neuropath.outcome   <- SetNeuroData(mem.neuropath.outcome)
+mem.neuropath.outcome  <- SetNeuroData(mem.neuropath.outcome)
 for(i in 1:nrow(mem.neuropath.outcome)) {
   if(!is.na(mem.neuropath.outcome["TDP_pos_path"][i,])) {
     mem.neuropath.outcome["fulltdp43"][i,] <- mem.neuropath.outcome["TDP_pos_path"][i,]
@@ -332,7 +332,6 @@ for(i in 1:nrow(image.neuropath.outcome)) {
 
 
 
-
 adas.outcome.data <- adas.outcome.data[order(adas.outcome.data$RID, adas.outcome.data$M, decreasing = FALSE),]
 adas.outcome.data$RID <- factor(adas.outcome.data$RID)
 adas.outcome.data <- TimeSinceBaselineValidAmy(adas.outcome.data, "M")
@@ -355,6 +354,8 @@ image.outcome.data    <- QuickAdjust(image.outcome.data)
 image.neuropath.outcome <- image.neuropath.outcome[order(image.neuropath.outcome$RID, image.neuropath.outcome$M, decreasing = FALSE),]
 image.neuropath.outcome <- QuickAdjust(image.neuropath.outcome)
 
+
+
 all.data.list <- list(adas.outcome.data, adas.neuropath.outcome,
                       mem.outcome.data, mem.neuropath.outcome)
 
@@ -362,15 +363,10 @@ adas.outcome.data$ptau_pos <- factor(adas.outcome.data$ptau_pos)
 adas.outcome.data$PTGENDER <- factor(adas.outcome.data$PTGENDER)
 adas.outcome.data$DX <- factor(adas.outcome.data$DX)
 adas.outcome.data$AmyPos <- factor(adas.outcome.data$AmyPos)
-adas.outcome.data$CDGLOBAL_bl <- factor(adas.outcome.data$CDGLOBAL_bl)
-adas.outcome.bl <- subset(adas.outcome.data, new_time==0)
-adas.desc.table <- table1(adas.outcome.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB")], splitby = ~DX)$Table1
-
 adas.neuropath.outcome$ptau_pos    <- factor(adas.neuropath.outcome$ptau_pos)
 adas.neuropath.outcome$PTGENDER    <- factor(adas.neuropath.outcome$PTGENDER)
 adas.neuropath.outcome$DX          <- factor(adas.neuropath.outcome$DX)
 adas.neuropath.outcome$AmyPos      <- factor(adas.neuropath.outcome$AmyPos)
-adas.neuropath.outcome$CDGLOBAL_bl <- factor(adas.neuropath.outcome$CDGLOBAL_bl)
 adas.neuropath.outcome$fulllewy  <- factor(adas.neuropath.outcome$fulllewy)
 adas.neuropath.outcome$fulltdp43 <- factor(adas.neuropath.outcome$fulltdp43)
 adas.neuropath.outcome$fullcaa   <- factor(adas.neuropath.outcome$fullcaa)
@@ -378,70 +374,62 @@ adas.neuropath.outcome$fulllewy  <- factor(adas.neuropath.outcome$fulllewy)
 adas.neuropath.outcome$fulltdp43 <- factor(adas.neuropath.outcome$fulltdp43)
 adas.neuropath.outcome$fullcaa   <- factor(adas.neuropath.outcome$fullcaa)
 
-save.all.list <- list()
 
 
-adas.outcome.neurpath.bl <- subset(adas.neuropath.outcome, new_time==0)
-adas.desc.table.neuro <- table1(adas.outcome.neurpath.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB", "fullcaa", "fulltdp43", "fulllewy")], splitby = ~DX)$Table1
 
-save.all.list[["desc.tables"]] <- list("fulloutcomestable"= adas.desc.table,
-                                       "outcomeswithneuropath" = adas.desc.table.neuro)
+
+all.data.list <- list(adas.outcome.data, adas.neuropath.outcome,
+                      mem.outcome.data, mem.neuropath.outcome)
+
+
+
+
+
+#save.all.list <- list()
+#save.all.list[["desc.tables"]] <- list("fulloutcomestable"= adas.desc.table,
+                                      # "outcomeswithneuropath" = adas.desc.table.neuro)
 
 
 #### model fitting
 
 
 simrOptions(nsim=1000)
-mci.scen1.generic       <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & AGE >= 55 & AGE <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
-mci.scen1.earlyage    <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65))
-mci.scen1.tplus    <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 85 & ptau_pos_bl==1))
-mci.scen1.neur        <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
-mci.scen1.neur.tplus    <- lapply(all.data.list[c(2,4)], function(x)subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))###############)
+mci.scen1.generic          <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & AGE >= 65 & AGE <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
+mci.scen1.earlyage         <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65))
+mci.scen1.tplus            <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=65 & AGE <= 85 & ptau_pos_bl==1))
+mci.scen1.neur             <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=65 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
+mci.scen1.neur.tplus       <- lapply(all.data.list[c(2,4)], function(x)subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=65 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))###############)
 
-ad.scen1.generic     <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=55 & AGE <= 85))
-ad.scen1.earlyage  <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=55 & AGE <= 65))
-ad.scen1.tplus       <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=55 & AGE <= 85  & ptau_pos_bl==1))
-ad.scen1.neur       <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
-ad.scen1.neur.tplus        <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=50 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))
+ad.scen1.generic           <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=65 & AGE <= 85))
+ad.scen1.earlyage          <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=55 & AGE <= 65))
+ad.scen1.tplus             <- lapply(all.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 28 & AGE >=65 & AGE <= 85  & ptau_pos_bl==1))
+ad.scen1.neur              <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=65 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0))
+ad.scen1.neur.tplus        <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE >=65 & AGE <= 85 & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))
 
-early.ad.scen1.generic   <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
-early.ad.scen1.earlyage  <- lapply(all.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 65 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
-early.ad.scen1.tplus     <- lapply(all.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & ptau_pos_bl==1))
-early.ad.scen1.neur     <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0))
-early.ad.scen1.neur.tplus      <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))##############
+early.ad.scen1.generic      <- lapply(all.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=65 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.earlyage     <- lapply(all.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=55 & AGE <= 65 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
+early.ad.scen1.tplus        <- lapply(all.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=65 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & ptau_pos_bl==1))
+early.ad.scen1.neur         <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=65 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0))
+early.ad.scen1.neur.tplus   <- lapply(all.data.list[c(2,4)], function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_bl==1 & AGE>=65 & AGE <= 85 & MMSE_bl >=20 & MMSE_bl <= 30 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fullcaa==0 & fulltdp43==0 & fulllewy==0 & ptau_pos_bl==1))##############
 
 
-g1.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \n"
+g1.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 \n"
 g2.mci <- "MCI A+ CDR = .5 \nAge 55-65  MMSE 24-30\n"
-g3.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 Tau+ (PTAU)\n"
-g4.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
-g5.mci <- "MCI A+ CDR = .5 \nAge 55-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
+g3.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 Tau+ (PTAU)\n"
+g4.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.mci <- "MCI A+ CDR = .5 \nAge 65-85  MMSE 24-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
 
-g1.ad <- "AD A+ CDR >= 1 \nAge 55-85  MMSE 20-28 \n"
+g1.ad <- "AD A+ CDR >= 1 \nAge 65-85  MMSE 20-28 \n"
 g2.ad <- "AD A+ CDR >= 1 \nAge 55-65  MMSE 20-28\n"
-g3.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 Tau+ (PTAU)\n"
-g4.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
-g5.ad <- "AD A+ CDR >=1  \nAge 55-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
+g3.ad <- "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 Tau+ (PTAU)\n"
+g4.ad <- "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.ad <- "AD A+ CDR >=1  \nAge 65-85  MMSE 20-28 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
 
-g1.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30\n"
+g1.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30\n"
 g2.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-65  MMSE 20-30\n"
-g3.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 Tau+ (PTAU)\n"
-g4.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
-g5.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 55-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+g3.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 Tau+ (PTAU)\n"
+g4.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-)\n"
+g5.early.ad <- "AD or MCI  \nA+ CDR = .5 or =1 \nAge 65-85  MMSE 20-30 \nNo Copathologies (Lewy- TDP43- CAA-) Tau+ (PTAU)\n"
 
 mci.scen1.generic.long     <- purrr::map2(mci.scen1.generic, all.data.list, PullLongData)
 mci.scen1.earlyage.long  <- purrr::map2(mci.scen1.earlyage, all.data.list, PullLongData)
@@ -461,6 +449,14 @@ early.ad.scen1.tplus.long<- purrr::map2(early.ad.scen1.tplus, all.data.list, Pul
 early.ad.scen1.neur.long<- purrr::map2(early.ad.scen1.neur, all.data.list[c(2,4)], PullLongData)
 early.ad.scen1.neur.tplus.long<- purrr::map2(early.ad.scen1.neur.tplus, all.data.list[c(2,4)], PullLongData)
 
+adas.neuropath.outcome$CDGLOBAL_bl <- factor(adas.neuropath.outcome$CDGLOBAL_bl)
+adas.outcome.bl <- subset(adas.outcome.data, new_time==0)
+adas.desc.table <- table1(adas.outcome.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB")], splitby = ~DX)$Table1
+adas.outcome.neurpath.bl <- subset(adas.neuropath.outcome, new_time==0)
+adas.desc.table.neuro <- table1(adas.outcome.neurpath.bl[c("DX","AmyPos","PTGENDER","ptau_pos","MMSE","CDGLOBAL_bl","CDRSB", "mPACCtrailsB", "fullcaa", "fulltdp43", "fulllewy")], splitby = ~DX)$Table1
+
+saveRDS(adas.desc.table, "/Users/adamgabriellang/Desktop/clinical_trial_sim/save_ptau_and_total/adas_descr.rds")
+saveRDS(adas.desc.table.neuro, "/Users/adamgabriellang/Desktop/clinical_trial_sim/save_ptau_and_total/adas_descr_nero.rds")
 
 
 if(source.script) { ########################
@@ -706,30 +702,6 @@ early.ad.scen1.neuro.ef.model        <- SampleSizeSimulation(sim.data = early.ad
 
 
 
-mci.scen1.generic.long     <- purrr::map2(mci.scen1.generic, all.data.list, PullLongData)
-mci.scen1.earlyage.long  <- purrr::map2(mci.scen1.earlyage, all.data.list, PullLongData)
-mci.scen1.tplus.long <- purrr::map2(mci.scen1.tplus, all.data.list, PullLongData)
-mci.scen1.neur.long <- purrr::map2(mci.scen1.neur, all.data.list, PullLongData)
-mci.scen1.neur.tplus.long <- purrr::map2(mci.scen1.neur.tplus, all.data.list[c(2,4)], PullLongData)
-
-ad.scen1.generic.long <- purrr::map2(ad.scen1.generic, all.data.list, PullLongData)
-ad.scen1.earlyage.long <- purrr::map2(ad.scen1.earlyage, all.data.list, PullLongData)
-ad.scen1.tplus.long<- purrr::map2(ad.scen1.tplus, all.data.list, PullLongData)
-ad.scen1.neur.long<- purrr::map2(ad.scen1.neur, all.data.list, PullLongData)
-ad.scen1.neur.tplus.long<- purrr::map2(ad.scen1.neur.tplus, all.data.list[c(2,4)], PullLongData)
-
-early.ad.scen1.generic.long<- purrr::map2(early.ad.scen1.generic, all.data.list, PullLongData)
-early.ad.scen1.earlyage.long<- purrr::map2(early.ad.scen1.earlyage, all.data.list, PullLongData)
-early.ad.scen1.tplus.long<- purrr::map2(early.ad.scen1.tplus, all.data.list, PullLongData)
-early.ad.scen1.neur.long<- purrr::map2(early.ad.scen1.neur, all.data.list, PullLongData)
-early.ad.scen1.neur.tplus.long<- purrr::map2(early.ad.scen1.neur.tplus, all.data.list[c(2,4)], PullLongData)
-
-
-
-
-
-
-simrOptions(nsim=100)
 
 } ####################################################
 #if(source.script){

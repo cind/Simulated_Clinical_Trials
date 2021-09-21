@@ -325,7 +325,7 @@ GroupDiseaseTraj <- function(sim.list, yaxislab_dpm) {
   plot.data$Enrichment <- plot.data$group
   
   gplot <- ggplot(plot.data, aes(y=predicted, x=new_time, colour=Enrichment, linetype = Treatment)) + geom_smooth(method = "lm", aes(fill=Enrichment), alpha=.1) 
-  gplot <- gplot  + xlab("Time (Months)") + ylab(yaxislab_dpm)
+  gplot <- gplot  + xlab("Time (Years)") + ylab(yaxislab_dpm)
   return(list("plot"=gplot, "screenfail"= screen.fail))
 }
 
@@ -501,29 +501,29 @@ RandomizeTreatment <- function(data) {
 
 
 
-SampleSizeSimulation2 <- function(sim.data, formula, fcompare_str, breaks, yaxislab_dpm, model, return_dpm=FALSE) {
-  #placebo <- expand.grid("RID"=levels(factor(sim.data$RID)), "new_time"=c(0,6,12,18,24))
-  #placebo <- placebo[order(placebo$RID, placebo$new_time, decreasing = FALSE),]
-  #placebo$treat <- rep(0, nrow(placebo))
-  #placebo$treat <- factor(placebo$treat)
-  #placebo$prediction <- predict(model, placebo)
-  #treatgroup <- expand.grid("RID"=levels(factor(sim.data$RID)), "new_time"=c(0,6,12,18,24))
-  #treatgroup <- treatgroup[order(treatgroup$RID, treatgroup$new_time, decreasing = FALSE),]
-  #treatgroup$treat <- rep(1, nrow(treatgroup))
-  #treatgroup$treat <- factor(treatgroup$treat)
-  #treatgroup$prediction <- predict(model, treatgroup)
-  #plot.data <- rbind(placebo, treatgroup)
-  #plot.data$treat <- factor(plot.data$treat)
-  #plot.data$prediction <- predict(model, plot.data)
-  #plot.disease.contr <- ggplot(plot.data, aes(x=new_time, y=prediction, colour=treat)) + geom_smooth(method = "lm")
-  #plot.disease.contr <- plot.disease.contr + scale_x_discrete(name = "Time (Months)", limits=c(0, 6, 12, 18, 24)) + ylab(yaxislab_dpm) + labs(colour="Treatment")
-  #if(return_dpm) {
-  #  return(list("model" = model,
-  #              "disease_progression_plot"=plot.disease.contr))
-  #}
+SampleSizeSimulation2 <- function(sim.data, formula, compare_str, breaks, yaxislab_dpm, model, return_dpm=FALSE) {
+  placebo <- sim.data
+  placebo <- placebo[order(placebo$RID, placebo$new_time, decreasing = FALSE),]
+  placebo$treat <- rep(0, nrow(placebo))
+  placebo$treat <- factor(placebo$treat)
+  placebo$prediction <- predict(model, placebo)
+  treatgroup <- sim.data
+  treatgroup <- treatgroup[order(treatgroup$RID, treatgroup$new_time, decreasing = FALSE),]
+  treatgroup$treat <- rep(1, nrow(treatgroup))
+  treatgroup$treat <- factor(treatgroup$treat)
+  treatgroup$prediction <- predict(model, treatgroup)
+  plot.data <- rbind(placebo, treatgroup)
+  plot.data$treat <- factor(plot.data$treat)
+  plot.data$prediction <- predict(model, plot.data)
+  plot.disease.contr <- ggplot(plot.data, aes(x=new_time, y=prediction, colour=treat)) + geom_smooth(method = "lm")
+  plot.disease.contr <- plot.disease.contr + scale_x_discrete(limits=c(0, .5, 1, 1.5, 2)) + ylab(yaxislab_dpm) + labs(colour="Treatment") + xlim(0, 2) + xlab("Time (Years)")
+  if(return_dpm) {
+    return(list("model" = model,
+                "disease_progression_plot"=plot.disease.contr))
+  }
   
   sim_ext_rid        <- simr::extend(model, along="RID", n=max(breaks))
-  p_curve_treat_sim  <- powerCurve(sim_ext_rid, test=compare(as.formula(fcompare_str)), along="RID", breaks=breaks)
+  p_curve_treat_sim  <- powerCurve(sim_ext_rid, test=compare(as.formula(compare_str)), along="RID", breaks=breaks)
   summ_sim           <- summary(p_curve_treat_sim)
   summ_sim$mean      <- summ_sim$mean*100
   summ_sim$lower     <- summ_sim$lower*100
@@ -539,18 +539,54 @@ SampleSizeSimulation2 <- function(sim.data, formula, fcompare_str, breaks, yaxis
   return(return.list)
 }
 
-
-BuildSimulationModel <- function(model, formula.model, data) {
-  fixd       <- fixef(model)
-  fixd["treat1"] <- 0
-  fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
-  fixd <- fixd[c("(Intercept)", "new_time", "treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", 
-                  "fulllewy1", "fullcaa1", "fulltdp431", "new_time:treat1", "new_time:fulllewy1", "new_time:fullcaa1", "new_time:fulltdp431")]
+ 
+BuildSimulationModel <- function(list, formula.model, data, treatment.effect, es) {
+  model            <- list[[1]]
+  adjusted.decline <- list[[2]]
+  fixd             <- fixef(model)
+  fixd["treat1"]   <- 0
+  if(treatment.effect =="controlled") {
+   fixd["new_time:treat1"] <- ((adjusted.decline * .5) * -1)
+  } else {
+   fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
+  }
+  fixd["fulllewy1"]           <- es[1]
+  fixd["fullcaa1"]            <- es[2]
+  fixd["fulltdp431"]          <- es[3]
+  fixd["new_time:fulllewy1"]  <- es[4]
+  fixd["new_time:fullcaa1"]   <- es[5]
+  fixd["new_time:fulltdp431"] <- es[6]
+  
+  
+  fixd                        <- fixd[c( "(Intercept)", "new_time", "treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", 
+                                         "fulllewy1", "fullcaa1", "fulltdp431", "new_time:treat1", "new_time:fulllewy1", 
+                                         "new_time:fullcaa1", "new_time:fulltdp431")]
   sigma.mod        <- summary(model)$sigma
   varcor.mod       <- as.numeric(summary(model)$varcor[[1]])
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=list(varcor.mod), sigma = sigma.mod, data = data)
   return(constr.lme)
 }
+
+
+BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effect) {
+  model            <- list[[1]]
+  adjusted.decline <- list[[2]]
+  fixd             <- fixef(model)
+  fixd["treat1"]   <- 0
+  if(treatment.effect =="controlled") {
+    fixd["new_time:treat1"] <- ((adjusted.decline * .5) * -1)
+  } else {
+    fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
+  }
+  
+  
+  fixd                        <- fixd[c( "(Intercept)", "new_time", "treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale")]
+  sigma.mod        <- summary(model)$sigma
+  varcor.mod       <- as.numeric(summary(model)$varcor[[1]])
+  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=list(varcor.mod), sigma = sigma.mod, data = data)
+  return(constr.lme)
+}
+
 
 
 BuildSignificanceTable <- function(model) {
@@ -602,13 +638,15 @@ BuildDescTable <- function(data, columns, split=FALSE) {
 
 
 
-ZscoreAdj <- function(data, col_names) {
+ZscoreAdj <- function(data, col_names, control.data) {
   colsdata <- colnames(data)
   zvarcols <- paste(col_names, "_zscore", sep="")
   for(i in col_names) {
-    bline <- subset(data, M_vis==0)
+    bline <- subset(control.data, new_time==0)
     zvar.mean <- mean(bline[[i]])
+    print(zvar.mean)
     zvar.sd <- sd(bline[[i]])
+    print(zvar.sd)
     zvar <- (data[[i]] - zvar.mean) / zvar.sd
     data <- cbind(data, zvar)
   }
@@ -618,17 +656,33 @@ ZscoreAdj <- function(data, col_names) {
 
 
 RandomizeTreatment2 <- function(data, stratcolumns, longdata) {
-  stratifydf     <- data[,c("RID", stratcolumns)]
+  stratifydf          <- data[,c("RID", stratcolumns)]
   stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat)
-  stratifieddata <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
-  treatmentrids  <- unique(stratifieddata$RID)
-  controlrids    <- data["RID"][which(data$RID %notin% treatmentrids),]
-  treatmentrows  <- subset(longdata, RID %in% treatmentrids)
+  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
+  treatmentrids       <- unique(stratifieddata$RID)
+  controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
+  treatmentrows       <- subset(longdata, RID %in% treatmentrids)
   treatmentrows$treat <- rep(1, nrow(treatmentrows))
-  controlrows    <- subset(longdata, RID %in% controlrids)
-  controlrows$treat <- rep(0, nrow(controlrows))
-  returndata <- rbind(treatmentrows, controlrows)
-  returndata$treat <- factor(returndata$treat)
+  controlrows         <- subset(longdata, RID %in% controlrids)
+  controlrows$treat   <- rep(0, nrow(controlrows))
+  returndata          <- rbind(treatmentrows, controlrows)
+  returndata$treat    <- factor(returndata$treat)
+  return(returndata)
+}
+
+
+RandomizeTreatment2NoPath <- function(data, stratcolumns, longdata) {
+  stratifydf          <- data[,c("RID", stratcolumns)]
+  stratifydf$stratvar <- interaction(stratifydf$PTGENDER, stratifydf$AGE_bl_strat)
+  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
+  treatmentrids       <- unique(stratifieddata$RID)
+  controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
+  treatmentrows       <- subset(longdata, RID %in% treatmentrids)
+  treatmentrows$treat <- rep(1, nrow(treatmentrows))
+  controlrows         <- subset(longdata, RID %in% controlrids)
+  controlrows$treat   <- rep(0, nrow(controlrows))
+  returndata          <- rbind(treatmentrows, controlrows)
+  returndata$treat    <- factor(returndata$treat)
   return(returndata)
 }
 
@@ -656,25 +710,58 @@ RemoveNormalAging <- function(control.model, enriched.model, data, formula.model
   enriched.decline <- fixef(enriched.model)["new_time"]
   adjusted.decline <- enriched.decline - control.decline
   fixd             <- fixef(enriched.model)
-  fixd["new_time"] <- adjusted.decline
+  #fixd["new_time"] <- adjusted.decline
   sigma.mod        <- summary(enriched.model)$sigma
   varcor.mod       <- as.numeric(summary(enriched.model)$varcor[[1]])
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=list(varcor.mod), sigma = sigma.mod, data = data)
-  return(constr.lme)
+  return(list(constr.lme, adjusted.decline))
 }
 
-ChangeNeuroFixEf <- function(model, ES) {
+ChangeNeuroFixEf <- function(list, ES) {
+  model <- list[[1]]
+  adjusted.decline <- list[[2]]
   fixef(model)["fulllewy1"]  <- ES[1]
   fixef(model)["fullcaa1"]   <- ES[2]
   fixef(model)["fulltdp431"] <- ES[3]
   fixef(model)["new_time:fulllewy1"]  <- ES[4]
   fixef(model)["new_time:fullcaa1"]   <- ES[5]
   fixef(model)["new_time:fulltdp431"] <- ES[6]
-  return(model)
+  return(list(model, adjusted.decline))
+}
+
+
+MapNames <- function(list, nameslist) {
+  names(list) <- nameslist
+  return(list)
 }
 
 
 
-
-
+RegressNeuro <- function(data, es, outcome) {
+  newvar <- paste(outcome, "neuradj", sep = "_")
+  data$fulllewy  <- as.numeric(as.character(data$fulllewy))
+  data$fulltdp43 <- as.numeric(as.character(data$fulltdp43))
+  data$fullcaa   <- as.numeric(as.character(data$fullcaa))
+  
+  data$lewyint <- es[1]
+  data$caaint  <- es[2]
+  data$tdpint  <- es[3]
+  
+  data$lewydec <- es[4]
+  data$caadec  <- es[5]
+  data$tdpdec  <- es[6]
+  
+  full_ints <- data[,c("fulllewy", "fullcaa", "fulltdp43")] * data[,c("lewyint", "caaint", "tdpint")]
+  full_decs <- data[,c("fulllewy", "fullcaa", "fulltdp43")] * data[,c("new_time")] * data[,c("lewydec", "caadec", "tdpdec")]
+  
+  full.rem  <- full_ints + full_decs
+  full.rem  <- rowSums2(as.matrix(full.rem))
+  
+  data$fulllewy  <- as.factor(as.character(data$fulllewy))
+  data$fulltdp43 <- as.factor(as.character(data$fulltdp43))
+  data$fullcaa   <- as.factor(as.character(data$fullcaa))
+  
+  data[[newvar]] <- data[[outcome]] - full.rem
+  return(data)
+}
 
