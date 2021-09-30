@@ -4,32 +4,91 @@ library(sjPlot)
 earlyadcohorts       <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts.rds")
 earlyadcohorts.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_tplus.rds")
 earlyadcohorts.neuroenriched <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_neuroenriched.rds")
+earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_neuroenriched_tplus.rds")
 
-View(earlyadcohorts)
 ######################## ADAS13 ######################## 
 cs.earlyad.adas13     <- earlyadcohorts$cs$ADAS13
 long.earlyad.adas13   <-  earlyadcohorts$long$ADAS13
+#cs.earlyad.adas13 <- cs.earlyad.adas13[complete.cases(cs.earlyad.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                           "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                           "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                           "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.adas13 <- long.earlyad.adas13[complete.cases(long.earlyad.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                           "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                           "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                           "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
 
 #Tau+
 cs.earlyad.tplus.adas13    <- earlyadcohorts.tplus$cs$ADAS13
 long.earlyad.tplus.adas13  <-  earlyadcohorts.tplus$long$ADAS13
-
+#cs.earlyad.tplus.adas13 <- cs.earlyad.tplus.adas13[complete.cases(cs.earlyad.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                           "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                           "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                           "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.tplus.adas13 <- long.earlyad.tplus.adas13[complete.cases(long.earlyad.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                 "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                 "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                 "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
 
 # Neuroenriched
 cs.earlyad.neuroenriched.adas13    <- earlyadcohorts.neuroenriched$cs$ADAS13
 long.earlyad.neuroenriched.adas13  <-  earlyadcohorts.neuroenriched$long$ADAS13
+#cs.earlyad.neuroenriched.adas13 <- cs.earlyad.neuroenriched.adas13[complete.cases(cs.earlyad.neuroenriched.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                             "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                             "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                             "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.adas13 <- long.earlyad.neuroenriched.adas13[complete.cases(long.earlyad.neuroenriched.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                   "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                   "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                   "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
+
+# Neuroenriched Tau+
+cs.earlyad.neuroenriched.tplus.adas13    <- earlyadcohorts.neuroenriched.tplus$cs$ADAS13
+long.earlyad.neuroenriched.tplus.adas13  <-  earlyadcohorts.neuroenriched.tplus$long$ADAS13
+#cs.earlyad.neuroenriched.tplus.adas13 <- cs.earlyad.neuroenriched.tplus.adas13[complete.cases(cs.earlyad.neuroenriched.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                     "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                     "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                     "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.tplus.adas13 <- long.earlyad.neuroenriched.tplus.adas13[complete.cases(long.earlyad.neuroenriched.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                           "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                           "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                           "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
 
 ######################### HIPPOCAMPUS ######################## 
 #LH and RH dataframes are identical and have both left/right hippocampus regions (just use LH)
 cs.earlyad.hipp    <- earlyadcohorts$cs$LH
 long.earlyad.hipp  <-  earlyadcohorts$long$LH
-
+#cs.earlyad.hipp                                                                   <- cs.earlyad.hipp[complete.cases(cs.earlyad.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                       "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                       "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                       "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.hipp                                                                    <- long.earlyad.hipp[complete.cases(long.earlyad.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                          "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                          "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                          "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
 cs.earlyad.hipp$hipp_average    <- (cs.earlyad.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 long.earlyad.hipp$hipp_average  <- (long.earlyad.hipp$ST29SV_harmonized_icv_adj + long.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
 #Tau+
-cs.earlyad.tplus.hipp    <- earlyadcohorts.tplus$cs$LH
-long.earlyad.tplus.hipp  <-  earlyadcohorts.tplus$long$LH
+cs.earlyad.tplus.hipp           <- earlyadcohorts.tplus$cs$LH
+long.earlyad.tplus.hipp         <-  earlyadcohorts.tplus$long$LH
+
+#cs.earlyad.tplus.hipp                                                                   <- cs.earlyad.tplus.hipp[complete.cases(cs.earlyad.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                       "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                       "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                       "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.tplus.hipp                                                                    <- long.earlyad.tplus.hipp[complete.cases(long.earlyad.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                              "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                              "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                              "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
 
 cs.earlyad.tplus.hipp$hipp_average   <- (cs.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 long.earlyad.tplus.hipp$hipp_average <- (long.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
@@ -39,23 +98,99 @@ long.earlyad.tplus.hipp$hipp_average <- (long.earlyad.tplus.hipp$ST29SV_harmoniz
 cs.earlyad.neuroenriched.hipp    <- earlyadcohorts.neuroenriched$cs$LH
 long.earlyad.neuroenriched.hipp  <-  earlyadcohorts.neuroenriched$long$LH
 
+#cs.earlyad.neuroenriched.hipp                                                                   <- cs.earlyad.neuroenriched.hipp[complete.cases(cs.earlyad.neuroenriched.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                                         "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                                         "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                                         "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.hipp                                                                    <- long.earlyad.neuroenriched.hipp[complete.cases(long.earlyad.neuroenriched.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                                                "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                                                "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                                                "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
+
 cs.earlyad.neuroenriched.hipp$hipp_average   <- (cs.earlyad.neuroenriched.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.neuroenriched.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 long.earlyad.neuroenriched.hipp$hipp_average <- (long.earlyad.neuroenriched.hipp$ST29SV_harmonized_icv_adj + long.earlyad.neuroenriched.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
+
+# Neuroenriched Tau+
+cs.earlyad.neuroenriched.tplus.hipp    <- earlyadcohorts.neuroenriched.tplus$cs$LH
+long.earlyad.neuroenriched.tplus.hipp <-  earlyadcohorts.neuroenriched.tplus$long$LH
+#cs.earlyad.neuroenriched.tplus.hipp                                                                   <- cs.earlyad.neuroenriched.tplus.hipp[complete.cases(cs.earlyad.neuroenriched.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                                                                 "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                                                                 "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                                                                 "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.tplus.hipp                                                                    <- long.earlyad.neuroenriched.tplus.hipp[complete.cases(long.earlyad.neuroenriched.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                                                                                        "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                                                                                        "ST88SV_harmonized_icv_adj","ST29SV_harmonized_icv_adj", "mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                                                                                        "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
+cs.earlyad.neuroenriched.tplus.hipp$hipp_average   <- (cs.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+long.earlyad.neuroenriched.tplus.hipp$hipp_average <- (long.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
 
 ######################## MPACC######################## 
 cs.earlyad.mpacc     <- earlyadcohorts$cs$MPACC
 long.earlyad.mpacc   <-  earlyadcohorts$long$MPACC
 
+#cs.earlyad.mpacc <- cs.earlyad.mpacc[complete.cases(cs.earlyad.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                           "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                           "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                           "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.mpacc <- long.earlyad.mpacc[complete.cases(long.earlyad.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                 "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                 "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                 "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
 #Tau+
 cs.earlyad.tplus.mpacc    <- earlyadcohorts.tplus$cs$MPACC
 long.earlyad.tplus.mpacc  <-  earlyadcohorts.tplus$long$MPACC
+
+#cs.earlyad.tplus.mpacc <- cs.earlyad.tplus.mpacc[complete.cases(cs.earlyad.tplus.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                        "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                        "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                        "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.tplus.mpacc <- long.earlyad.tplus.mpacc[complete.cases(long.earlyad.tplus.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                              "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                              "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                              "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
 
 
 # Neuroenriched
 cs.earlyad.neuroenriched.mpacc    <- earlyadcohorts.neuroenriched$cs$MPACC
 long.earlyad.neuroenriched.mpacc  <-  earlyadcohorts.neuroenriched$long$MPACC
+
+#cs.earlyad.neuroenriched.mpacc <- cs.earlyad.neuroenriched.mpacc[complete.cases(cs.earlyad.neuroenriched.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                          "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                          "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                          "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.mpacc <- long.earlyad.neuroenriched.mpacc[complete.cases(long.earlyad.neuroenriched.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+
+
+
+
+# Neuroenriched Tau+
+cs.earlyad.neuroenriched.tplus.mpacc    <- earlyadcohorts.neuroenriched.tplus$cs$MPACC
+long.earlyad.neuroenriched.tplus.mpacc  <-  earlyadcohorts.neuroenriched.tplus$long$MPACC
+#cs.earlyad.neuroenriched.tplus.mpacc <- cs.earlyad.neuroenriched.tplus.mpacc[complete.cases(cs.earlyad.neuroenriched.tplus.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                  "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                  "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                  "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
+#long.earlyad.neuroenriched.tplus.mpacc <- long.earlyad.neuroenriched.tplus.mpacc[complete.cases(long.earlyad.neuroenriched.tplus.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+#                                                                                                                        "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+#                                                                                                                        "mPACCtrailsB" ,"mPACCtrailsB_bl", "TauPos_full", 
+#                                                                                                                        "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]), ]
 
 
 
@@ -68,6 +203,7 @@ earlyad.adas13.desc <- cs.earlyad.adas13[,c("DX_bl", "AGE_bl", "PTGENDER",
                                             "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
                                             "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]
 
+nrow(earlyad.adas13.desc)
 earlyad.adas13.desc$TauPos_full <- factor(earlyad.adas13.desc$TauPos_full)
 earlyad.adas13.desc$AmyPos_full <- factor(earlyad.adas13.desc$AmyPos_full)
 colnames(earlyad.adas13.desc)   <- c("Diagnosis", "Age (Baseline)", "Gender", 
@@ -98,7 +234,6 @@ earlyad.tplus.adas13.desc <- table1(earlyad.tplus.adas13.desc, splitby = ~ Diagn
 earlyad.tplus.adas13.desc <- earlyad.tplus.adas13.desc$Table1
 earlyad.tplus.adas13.desc <- earlyad.tplus.adas13.desc[c(1, 6:9, 11:nrow(earlyad.tplus.adas13.desc)),]
 
-
 #Neuroenriched
 earlyad.neuroenriched.adas13.desc <- cs.earlyad.neuroenriched.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
                                                         "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
@@ -117,7 +252,23 @@ earlyad.neuroenriched.adas13.desc <- table1(earlyad.neuroenriched.adas13.desc, s
 earlyad.neuroenriched.adas13.desc <- earlyad.neuroenriched.adas13.desc$Table1
 earlyad.neuroenriched.adas13.desc <- earlyad.neuroenriched.adas13.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.adas13.desc)),]
 
+#Neuroenriched Tau+
+earlyad.neuroenriched.tplus.adas13.desc <- cs.earlyad.neuroenriched.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
+                                                                        "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+                                                                        "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+                                                                        "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]
 
+earlyad.neuroenriched.tplus.adas13.desc$TauPos_full <- factor(earlyad.neuroenriched.tplus.adas13.desc$TauPos_full)
+earlyad.neuroenriched.tplus.adas13.desc$AmyPos_full <- factor(earlyad.neuroenriched.tplus.adas13.desc$AmyPos_full)
+
+colnames(earlyad.neuroenriched.tplus.adas13.desc) <- c("Diagnosis", "Age (Baseline)", "Gender", 
+                                                 "Education (Baseline)","MMSE (Baseline)", "CDRSB (Baseline)", 
+                                                 "ADAS13 (Baseline)" ,"mPACCtrailsB (Baseline)", "Tau+ (Baseline)", 
+                                                 "Amy+ (Baseline)", "CAA", "TDP43", "Lewy")
+
+earlyad.neuroenriched.tplus.adas13.desc <- table1(earlyad.neuroenriched.tplus.adas13.desc, splitby = ~ Diagnosis)
+earlyad.neuroenriched.tplus.adas13.desc <- earlyad.neuroenriched.tplus.adas13.desc$Table1
+earlyad.neuroenriched.tplus.adas13.desc <- earlyad.neuroenriched.tplus.adas13.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.tplus.adas13.desc)),]
 
 
 
@@ -177,6 +328,24 @@ earlyad.neuroenriched.hipp.desc <- earlyad.neuroenriched.hipp.desc$Table1
 earlyad.neuroenriched.hipp.desc <- earlyad.neuroenriched.hipp.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.hipp.desc)),]
 
 
+
+# Neuroenriched Tau+
+earlyad.neuroenriched.tplus.hipp.desc <- cs.earlyad.neuroenriched.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
+                                                                    "PTEDUCAT_bl", "MMSE_bl" , "CDRSB_bl",
+                                                                    "hipp_average" ,"mPACCtrailsB_bl", "TauPos_full", 
+                                                                    "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]
+
+earlyad.neuroenriched.tplus.hipp.desc$TauPos_full <- factor(earlyad.neuroenriched.tplus.hipp.desc$TauPos_full)
+earlyad.neuroenriched.tplus.hipp.desc$AmyPos_full <- factor(earlyad.neuroenriched.tplus.hipp.desc$AmyPos_full)
+
+colnames(earlyad.neuroenriched.tplus.hipp.desc) <- c("Diagnosis", "Age (Baseline)", "Gender", 
+                                               "Education (Baseline)","MMSE (Baseline)", "CDRSB (Baseline)", 
+                                               "Hippocampus (L.R average_ICV adjusted_Baseline)" ,"mPACCtrailsB (Baseline)", "Tau+ (Baseline)", 
+                                               "Amy+ (Baseline)", "CAA", "TDP43", "Lewy")
+
+earlyad.neuroenriched.tplus.hipp.desc <- table1(earlyad.neuroenriched.tplus.hipp.desc, splitby = ~ Diagnosis)
+earlyad.neuroenriched.tplus.hipp.desc <- earlyad.neuroenriched.tplus.hipp.desc$Table1
+earlyad.neuroenriched.tplus.hipp.desc <- earlyad.neuroenriched.tplus.hipp.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.tplus.hipp.desc)),]
 
 
 
@@ -238,8 +407,25 @@ earlyad.neuroenriched.mpacc.desc <- table1(earlyad.neuroenriched.mpacc.desc, spl
 earlyad.neuroenriched.mpacc.desc <- earlyad.neuroenriched.mpacc.desc$Table1
 earlyad.neuroenriched.mpacc.desc <- earlyad.neuroenriched.mpacc.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.mpacc.desc)),]
 
+#Neuroenriched Tau+
+earlyad.neuroenriched.tplus.mpacc.desc <- cs.earlyad.neuroenriched.tplus.mpacc[,c("DX_bl", "AGE_bl", "PTGENDER", 
+                                                                      "PTEDUCAT_bl", "MMSE_bl" ,"CDRSB_bl",
+                                                                      "TOTAL13_bl" ,"mPACCtrailsB_bl", "TauPos_full", 
+                                                                      "AmyPos_full","fullcaa", "fulltdp43", "fulllewy")]
 
-View(earlyad.neuroenriched.mpacc.desc)
+earlyad.neuroenriched.tplus.mpacc.desc$TauPos_full <- factor(earlyad.neuroenriched.tplus.mpacc.desc$TauPos_full)
+earlyad.neuroenriched.tplus.mpacc.desc$AmyPos_full <- factor(earlyad.neuroenriched.tplus.mpacc.desc$AmyPos_full)
+
+colnames(earlyad.neuroenriched.tplus.mpacc.desc) <- c("Diagnosis", "Age (Baseline)", "Gender", 
+                                                "Education (Baseline)","MMSE (Baseline)", "CDRSB (Baseline)", 
+                                                "ADAS13 (Baseline)" ,"mPACCtrailsB (Baseline)", "Tau+ (Baseline)", 
+                                                "Amy+ (Baseline)", "CAA", "TDP43", "Lewy")
+
+earlyad.neuroenriched.tplus.mpacc.desc <- table1(earlyad.neuroenriched.tplus.mpacc.desc, splitby = ~ Diagnosis)
+earlyad.neuroenriched.tplus.mpacc.desc <- earlyad.neuroenriched.tplus.mpacc.desc$Table1
+earlyad.neuroenriched.tplus.mpacc.desc <- earlyad.neuroenriched.tplus.mpacc.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.tplus.mpacc.desc)),]
+
+
 
 
 #fit repeated measures model on longitudinal data
@@ -249,16 +435,19 @@ View(earlyad.neuroenriched.mpacc.desc)
 long.earlyad.adas13 <- MMRMTime(long.earlyad.adas13)
 long.earlyad.tplus.adas13 <- MMRMTime(long.earlyad.tplus.adas13)
 long.earlyad.neuroenriched.adas13 <- MMRMTime(long.earlyad.neuroenriched.adas13)
+long.earlyad.neuroenriched.tplus.adas13 <- MMRMTime(long.earlyad.neuroenriched.tplus.adas13)
 
 
 long.earlyad.hipp <-  MMRMTime(long.earlyad.hipp)
 long.earlyad.tplus.hipp <- MMRMTime(long.earlyad.tplus.hipp)
 long.earlyad.neuroenriched.hipp <- MMRMTime(long.earlyad.neuroenriched.hipp)
+long.earlyad.neuroenriched.tplus.hipp <- MMRMTime(long.earlyad.neuroenriched.tplus.hipp)
 
 
 long.earlyad.mpacc <- MMRMTime(long.earlyad.mpacc)
 long.earlyad.tplus.mpacc <- MMRMTime(long.earlyad.tplus.mpacc)
 long.earlyad.neuroenriched.mpacc <- MMRMTime(long.earlyad.neuroenriched.mpacc)
+long.earlyad.neuroenriched.tplus.mpacc <- MMRMTime(long.earlyad.neuroenriched.tplus.mpacc)
 
 
 
@@ -267,7 +456,6 @@ mmrm.earlyad.adas13        <- gls(TOTAL13~factor(new_time_mmrm),
                                     na.action=na.omit, data=long.earlyad.adas13,
                                     correlation=nlme::corSymm(form=~new_time_mmrm|RID),
                                     weights=nlme::varIdent(form=~1|new_time_mmrm))
-
 
 #Enriched for TAU
 mmrm.earlyad.tplus.adas13<- gls(TOTAL13~factor(new_time_mmrm),
@@ -279,6 +467,13 @@ mmrm.earlyad.neuroenriched.adas13<- gls(TOTAL13~factor(new_time_mmrm),
                                 na.action=na.omit, data=long.earlyad.neuroenriched.adas13,
                                 correlation=nlme::corSymm(form=~new_time_mmrm|RID),
                                 weights=nlme::varIdent(form=~1|new_time_mmrm))
+
+#Neuroenriched Tau+
+mmrm.earlyad.neuroenriched.tplus.adas13<- gls(TOTAL13~factor(new_time_mmrm),
+                                        na.action=na.omit, data=long.earlyad.neuroenriched.tplus.adas13,
+                                        correlation=nlme::corSymm(form=~new_time_mmrm|RID),
+                                        weights=nlme::varIdent(form=~1|new_time_mmrm))
+
 
 
 ######################## HIPPOCAMPUS ######################## 
@@ -300,6 +495,15 @@ mmrm.earlyad.neuroenriched.hipp <- gls(hipp_average~factor(new_time_mmrm),
                                weights=nlme::varIdent(form=~1|new_time_mmrm))
 
 
+#Neuroenriched Tau+
+mmrm.earlyad.neuroenriched.tplus.hipp <- gls(hipp_average~factor(new_time_mmrm),
+                                       na.action=na.omit, data=long.earlyad.neuroenriched.tplus.hipp,
+                                       correlation=nlme::corSymm(form=~new_time_mmrm|RID),
+                                       weights=nlme::varIdent(form=~1|new_time_mmrm))
+
+
+
+
 
 ######################## MPACC ######################## 
 mmrm.earlyad.mpacc        <- gls(mPACCtrailsB~factor(new_time_mmrm),
@@ -318,9 +522,11 @@ mmrm.earlyad.neuroenriched.mpacc<- gls(mPACCtrailsB~factor(new_time_mmrm),
                                         na.action=na.omit, data=long.earlyad.neuroenriched.mpacc,
                                         correlation=nlme::corSymm(form=~new_time_mmrm|RID),
                                         weights=nlme::varIdent(form=~1|new_time_mmrm))
-
-
-
+#Neuroenriched Tau+
+mmrm.earlyad.neuroenriched.tplus.mpacc<- gls(mPACCtrailsB~factor(new_time_mmrm),
+                                       na.action=na.omit, data=long.earlyad.neuroenriched.tplus.mpacc,
+                                       correlation=nlme::corSymm(form=~new_time_mmrm|RID),
+                                       weights=nlme::varIdent(form=~1|new_time_mmrm))
 
 
 
@@ -340,6 +546,11 @@ stderror.earlyad.tplus.adas13  <- unname(coef(summary(mmrm.earlyad.tplus.adas13)
 coefs.earlyad.neuroenriched.adas13     <- unname(coef(summary(mmrm.earlyad.neuroenriched.adas13))[, "Value"])
 stderror.earlyad.neuroenriched.adas13  <- unname(coef(summary(mmrm.earlyad.neuroenriched.adas13))[, "Std.Error"])
 
+#Neuroenriched Tau+
+coefs.earlyad.neuroenriched.tplus.adas13     <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.adas13))[, "Value"])
+stderror.earlyad.neuroenriched.tplus.adas13  <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.adas13))[, "Std.Error"])
+
+
 ######################## HIPPOCAMPUS ######################## 
 coefs.earlyad.hipp     <- unname(coef(summary(mmrm.earlyad.hipp))[, "Value"])
 stderror.earlyad.hipp  <- unname(coef(summary(mmrm.earlyad.hipp))[, "Std.Error"])
@@ -348,8 +559,14 @@ stderror.earlyad.hipp  <- unname(coef(summary(mmrm.earlyad.hipp))[, "Std.Error"]
 coefs.earlyad.tplus.hipp     <- unname(coef(summary(mmrm.earlyad.tplus.hipp))[, "Value"])
 stderror.earlyad.tplus.hipp  <- unname(coef(summary(mmrm.earlyad.tplus.hipp))[, "Std.Error"])
 
+#Neuroenriched
 coefs.earlyad.neuroenriched.hipp     <- unname(coef(summary(mmrm.earlyad.neuroenriched.hipp))[, "Value"])
 stderror.earlyad.neuroenriched.hipp  <- unname(coef(summary(mmrm.earlyad.neuroenriched.hipp))[, "Std.Error"])
+
+#Neuroenriched Tau+
+coefs.earlyad.neuroenriched.tplus.hipp     <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.hipp))[, "Value"])
+stderror.earlyad.neuroenriched.tplus.hipp  <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.hipp))[, "Std.Error"])
+
 
 
 ######################## MPACC ######################## 
@@ -364,6 +581,9 @@ stderror.earlyad.tplus.mpacc  <- unname(coef(summary(mmrm.earlyad.tplus.mpacc))[
 coefs.earlyad.neuroenriched.mpacc     <- unname(coef(summary(mmrm.earlyad.neuroenriched.mpacc))[, "Value"])
 stderror.earlyad.neuroenriched.mpacc  <- unname(coef(summary(mmrm.earlyad.neuroenriched.mpacc))[, "Std.Error"])
 
+#Neuroenriched Tau+
+coefs.earlyad.neuroenriched.tplus.mpacc     <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.mpacc))[, "Value"])
+stderror.earlyad.neuroenriched.tplus.mpacc  <- unname(coef(summary(mmrm.earlyad.neuroenriched.tplus.mpacc))[, "Std.Error"])
 
 
 
@@ -396,7 +616,7 @@ earlyad.tplus.adas13.plotting.data$ci_hi      <-  earlyad.tplus.adas13.plotting.
 earlyad.tplus.adas13.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.tplus.adas13.plotting.data$Enrichment <- "Tau+"
 
-
+#Neuroenriched
 earlyad.neuroenriched.adas13.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.adas13,
                                                  "stderr" = stderror.earlyad.neuroenriched.adas13)
 earlyad.neuroenriched.adas13.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.adas13.plotting.data$stderr
@@ -408,6 +628,17 @@ earlyad.neuroenriched.adas13.plotting.data$ci_hi      <-  earlyad.neuroenriched.
 earlyad.neuroenriched.adas13.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.neuroenriched.adas13.plotting.data$Enrichment <- "No Copathologies"
 
+#Neuroenriched Tau+
+earlyad.neuroenriched.tplus.adas13.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.tplus.adas13,
+                                                         "stderr" = stderror.earlyad.neuroenriched.tplus.adas13)
+earlyad.neuroenriched.tplus.adas13.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.tplus.adas13.plotting.data$stderr
+earlyad.neuroenriched.tplus.adas13.plotting.data$ci_hi      <-   1.96* earlyad.neuroenriched.tplus.adas13.plotting.data$stderr
+earlyad.neuroenriched.tplus.adas13.plotting.data$means      <-  earlyad.neuroenriched.tplus.adas13.plotting.data$coefs
+earlyad.neuroenriched.tplus.adas13.plotting.data$means[2:5] <-  earlyad.neuroenriched.tplus.adas13.plotting.data$means[2:5] + earlyad.neuroenriched.tplus.adas13.plotting.data$coefs[1] #add intercept to each estimate for plotting
+earlyad.neuroenriched.tplus.adas13.plotting.data$ci_low     <-  earlyad.neuroenriched.tplus.adas13.plotting.data$ci_low+ earlyad.neuroenriched.tplus.adas13.plotting.data$means
+earlyad.neuroenriched.tplus.adas13.plotting.data$ci_hi      <-  earlyad.neuroenriched.tplus.adas13.plotting.data$ci_hi+ earlyad.neuroenriched.tplus.adas13.plotting.data$means
+earlyad.neuroenriched.tplus.adas13.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
+earlyad.neuroenriched.tplus.adas13.plotting.data$Enrichment <- "No Copathologies Tau+"
 
 
 
@@ -436,6 +667,7 @@ earlyad.tplus.hipp.plotting.data$ci_hi      <-  earlyad.tplus.hipp.plotting.data
 earlyad.tplus.hipp.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.tplus.hipp.plotting.data$Enrichment <- "Tau+"
 
+#Neuroenriched
 earlyad.neuroenriched.hipp.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.hipp,
                                                          "stderr" = stderror.earlyad.neuroenriched.hipp)
 earlyad.neuroenriched.hipp.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.hipp.plotting.data$stderr
@@ -446,6 +678,19 @@ earlyad.neuroenriched.hipp.plotting.data$ci_low     <-  earlyad.neuroenriched.hi
 earlyad.neuroenriched.hipp.plotting.data$ci_hi      <-  earlyad.neuroenriched.hipp.plotting.data$ci_hi+ earlyad.neuroenriched.hipp.plotting.data$means
 earlyad.neuroenriched.hipp.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.neuroenriched.hipp.plotting.data$Enrichment <- "No Copathologies"
+
+
+#Neuroenriched Tau+
+earlyad.neuroenriched.tplus.hipp.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.tplus.hipp,
+                                                       "stderr" = stderror.earlyad.neuroenriched.tplus.hipp)
+earlyad.neuroenriched.tplus.hipp.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.tplus.hipp.plotting.data$stderr
+earlyad.neuroenriched.tplus.hipp.plotting.data$ci_hi      <-   1.96* earlyad.neuroenriched.tplus.hipp.plotting.data$stderr
+earlyad.neuroenriched.tplus.hipp.plotting.data$means      <-  earlyad.neuroenriched.tplus.hipp.plotting.data$coefs
+earlyad.neuroenriched.tplus.hipp.plotting.data$means[2:5] <-  earlyad.neuroenriched.tplus.hipp.plotting.data$means[2:5] + earlyad.neuroenriched.tplus.hipp.plotting.data$coefs[1] #add intercept to each estimate for plotting
+earlyad.neuroenriched.tplus.hipp.plotting.data$ci_low     <-  earlyad.neuroenriched.tplus.hipp.plotting.data$ci_low+ earlyad.neuroenriched.tplus.hipp.plotting.data$means
+earlyad.neuroenriched.tplus.hipp.plotting.data$ci_hi      <-  earlyad.neuroenriched.tplus.hipp.plotting.data$ci_hi+ earlyad.neuroenriched.tplus.hipp.plotting.data$means
+earlyad.neuroenriched.tplus.hipp.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
+earlyad.neuroenriched.tplus.hipp.plotting.data$Enrichment <- "No Copathologies Tau+"
 
 
 #create dataset for plotting
@@ -473,7 +718,7 @@ earlyad.tplus.mpacc.plotting.data$ci_hi      <-  earlyad.tplus.mpacc.plotting.da
 earlyad.tplus.mpacc.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.tplus.mpacc.plotting.data$Enrichment <- "Tau+"
 
-
+#Neuroenriched
 earlyad.neuroenriched.mpacc.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.mpacc,
                                                          "stderr" = stderror.earlyad.neuroenriched.mpacc)
 earlyad.neuroenriched.mpacc.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.mpacc.plotting.data$stderr
@@ -485,6 +730,17 @@ earlyad.neuroenriched.mpacc.plotting.data$ci_hi      <-  earlyad.neuroenriched.m
 earlyad.neuroenriched.mpacc.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
 earlyad.neuroenriched.mpacc.plotting.data$Enrichment <- "No Copathologies"
 
+#Neuroenriched Tau+
+earlyad.neuroenriched.tplus.mpacc.plotting.data <- data.frame("coefs" = coefs.earlyad.neuroenriched.tplus.mpacc,
+                                                        "stderr" = stderror.earlyad.neuroenriched.tplus.mpacc)
+earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_low     <-  -1.96* earlyad.neuroenriched.tplus.mpacc.plotting.data$stderr
+earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_hi      <-   1.96* earlyad.neuroenriched.tplus.mpacc.plotting.data$stderr
+earlyad.neuroenriched.tplus.mpacc.plotting.data$means      <-  earlyad.neuroenriched.tplus.mpacc.plotting.data$coefs
+earlyad.neuroenriched.tplus.mpacc.plotting.data$means[2:5] <-  earlyad.neuroenriched.tplus.mpacc.plotting.data$means[2:5] + earlyad.neuroenriched.tplus.mpacc.plotting.data$coefs[1] #add intercept to each estimate for plotting
+earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_low     <-  earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_low+ earlyad.neuroenriched.tplus.mpacc.plotting.data$means
+earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_hi      <-  earlyad.neuroenriched.tplus.mpacc.plotting.data$ci_hi+ earlyad.neuroenriched.tplus.mpacc.plotting.data$means
+earlyad.neuroenriched.tplus.mpacc.plotting.data$time       <-  c(0, .5, 1, 1.5, 2)
+earlyad.neuroenriched.tplus.mpacc.plotting.data$Enrichment <- "No Copathologies Tau+"
 
 
 
@@ -495,31 +751,25 @@ earlyad.neuroenriched.mpacc.plotting.data$Enrichment <- "No Copathologies"
 ######################## ADAS13 ######################## 
 earlyad.adas13.plotting.data <- rbind(earlyad.adas13.plotting.data,
                                       earlyad.tplus.adas13.plotting.data,
-                                      earlyad.neuroenriched.adas13.plotting.data)
+                                      earlyad.neuroenriched.tplus.adas13.plotting.data)
 earlyad.adas13.mmrm.plot <- ggplot(earlyad.adas13.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
-earlyad.adas13.mmrm.plot <- earlyad.adas13.mmrm.plot + xlab("Time (Years)") + ylab("Mean ADAS-13 (95% CI)") + ylim(20, 35)
+earlyad.adas13.mmrm.plot <- earlyad.adas13.mmrm.plot + xlab("Time (Years)") + ylab("Mean ADAS-13 (95% CI)") + ylim(20, 40)
 earlyad.adas13.mmrm.plot
-
-
 ######################## HIPPOCAMPUS ######################## 
 earlyad.hipp.plotting.data <- rbind(earlyad.hipp.plotting.data,
                                     earlyad.tplus.hipp.plotting.data,
-                                    earlyad.neuroenriched.hipp.plotting.data)
+                                    earlyad.neuroenriched.tplus.hipp.plotting.data)
 earlyad.hipp.mmrm.plot <- ggplot(earlyad.hipp.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
 earlyad.hipp.mmrm.plot <- earlyad.hipp.mmrm.plot + xlab("Time (Years)") + ylab("Mean Hippocampus (95% CI)") + ylim(2700, 3800)
 earlyad.hipp.mmrm.plot
 
-
-
 ######################## MPACC ######################## 
 earlyad.mpacc.plotting.data <- rbind(earlyad.mpacc.plotting.data,
                                       earlyad.tplus.mpacc.plotting.data,
-                                      earlyad.neuroenriched.mpacc.plotting.data)
+                                      earlyad.neuroenriched.tplus.mpacc.plotting.data)
 earlyad.mpacc.mmrm.plot <- ggplot(earlyad.mpacc.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
 earlyad.mpacc.mmrm.plot <- earlyad.mpacc.mmrm.plot + xlab("Time (Years)") + ylab("Mean mPACCtrailsB (95% CI)") 
 earlyad.mpacc.mmrm.plot
-
-
 ######################################## Simulations #################################################
 
 
@@ -530,6 +780,7 @@ earlyad.mpacc.mmrm.plot
 cs.earlyad.adas13 <- StratifyContVar(cs.earlyad.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.tplus.adas13 <- StratifyContVar(cs.earlyad.tplus.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.neuroenriched.adas13 <- StratifyContVar(cs.earlyad.neuroenriched.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
+cs.earlyad.neuroenriched.tplus.adas13 <- StratifyContVar(cs.earlyad.neuroenriched.tplus.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 
 
 
@@ -539,6 +790,7 @@ cs.earlyad.neuroenriched.adas13 <- StratifyContVar(cs.earlyad.neuroenriched.adas
 long.earlyad.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.adas13, long.earlyad.adas13)
 long.earlyad.tplus.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.tplus.adas13, long.earlyad.tplus.adas13)
 long.earlyad.neuroenriched.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.adas13, long.earlyad.neuroenriched.adas13)
+long.earlyad.neuroenriched.tplus.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.tplus.adas13, long.earlyad.neuroenriched.tplus.adas13)
 
 ######################## HIPPOCAMPUS ######################## 
 
@@ -547,6 +799,7 @@ long.earlyad.neuroenriched.adas13_with_treatment <- RandomizeTreatment2(cs.early
 cs.earlyad.hipp <- StratifyContVar(cs.earlyad.hipp, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.tplus.hipp <- StratifyContVar(cs.earlyad.tplus.hipp, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.neuroenriched.hipp <- StratifyContVar(cs.earlyad.neuroenriched.hipp, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
+cs.earlyad.neuroenriched.tplus.hipp <- StratifyContVar(cs.earlyad.neuroenriched.tplus.hipp, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 
 
 
@@ -556,6 +809,7 @@ cs.earlyad.neuroenriched.hipp <- StratifyContVar(cs.earlyad.neuroenriched.hipp, 
 long.earlyad.hipp_with_treatment <- RandomizeTreatment2(cs.earlyad.hipp, long.earlyad.hipp)
 long.earlyad.tplus.hipp_with_treatment <- RandomizeTreatment2(cs.earlyad.tplus.hipp, long.earlyad.tplus.hipp)
 long.earlyad.neuroenriched.hipp_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.hipp, long.earlyad.neuroenriched.hipp)
+long.earlyad.neuroenriched.tplus.hipp_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.tplus.hipp, long.earlyad.neuroenriched.tplus.hipp)
 
 
 ######################## MPACC ######################## 
@@ -564,6 +818,7 @@ long.earlyad.neuroenriched.hipp_with_treatment <- RandomizeTreatment2(cs.earlyad
 cs.earlyad.mpacc <- StratifyContVar(cs.earlyad.mpacc, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.tplus.mpacc <- StratifyContVar(cs.earlyad.tplus.mpacc, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.neuroenriched.mpacc <- StratifyContVar(cs.earlyad.neuroenriched.mpacc, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
+cs.earlyad.neuroenriched.tplus.mpacc <- StratifyContVar(cs.earlyad.neuroenriched.tplus.mpacc, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 
 
 
@@ -573,6 +828,7 @@ cs.earlyad.neuroenriched.mpacc <- StratifyContVar(cs.earlyad.neuroenriched.mpacc
 long.earlyad.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.mpacc, long.earlyad.mpacc)
 long.earlyad.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.tplus.mpacc, long.earlyad.tplus.mpacc)
 long.earlyad.neuroenriched.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.mpacc, long.earlyad.neuroenriched.mpacc)
+long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.tplus.mpacc, long.earlyad.neuroenriched.tplus.mpacc)
 
 
 
@@ -594,6 +850,7 @@ long.earlyad.neuroenriched.mpacc_with_treatment <- RandomizeTreatment2(cs.earlya
 
 
 ######################## ADAS13 ######################## 
+#random intercept
 formula.earlyad.adas13 <- "TOTAL13 ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1|RID)"
 model.earlyad.adas13 <- MapLmer(newdata = long.earlyad.adas13_with_treatment,
                                 formula.model = formula.earlyad.adas13)
@@ -601,7 +858,8 @@ model.earlyad.tplus.adas13 <- MapLmer(newdata = long.earlyad.tplus.adas13_with_t
                                 formula.model = formula.earlyad.adas13)
 model.earlyad.neuroenriched.adas13 <- MapLmer(newdata = long.earlyad.neuroenriched.adas13_with_treatment,
                                       formula.model = formula.earlyad.adas13)
-
+model.earlyad.neuroenriched.tplus.adas13 <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.adas13_with_treatment,
+                                              formula.model = formula.earlyad.adas13)
 
 
 
@@ -609,18 +867,75 @@ formula.earlyad.adas13.simulation             <- "TOTAL13 ~ new_time*treat + PTE
 simulation.model.earlyad.adas13               <- BuildSimulationModelNoPath(model.earlyad.adas13, formula.earlyad.adas13.simulation, long.earlyad.adas13_with_treatment, "not-controlled")
 simulation.model.earlyad.tplus.adas13         <- BuildSimulationModelNoPath(model.earlyad.tplus.adas13, formula.earlyad.adas13.simulation, long.earlyad.tplus.adas13_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.adas13 <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.adas13, formula.earlyad.adas13.simulation, long.earlyad.neuroenriched.adas13_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.adas13 <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.adas13, formula.earlyad.adas13.simulation, long.earlyad.neuroenriched.tplus.adas13_with_treatment, "not-controlled")
 
 
 dpm.data.earlyad.adas13 <- get_model_data(simulation.model.earlyad.adas13, terms = "new_time", type = "int") 
 dpm.data.earlyad.tplus.adas13 <- get_model_data(simulation.model.earlyad.tplus.adas13, terms = "new_time", type = "int") 
 dpm.data.earlyad.neuroenriched.adas13 <- get_model_data(simulation.model.earlyad.neuroenriched.adas13, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.adas13 <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.adas13, terms = "new_time", type = "int") 
 
 dpm.data.earlyad.adas13$Enrichment <- "No Enrichment"
 dpm.data.earlyad.tplus.adas13$Enrichment <- "Tau+"
 dpm.data.earlyad.neuroenriched.adas13$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.adas13$Enrichment <- "No Copathologies Tau+"
 
-fulldpm.earlyad.adas13 <- rbind(dpm.data.earlyad.adas13,dpm.data.earlyad.tplus.adas13,dpm.data.earlyad.neuroenriched.adas13)
+fulldpm.earlyad.adas13 <- rbind(dpm.data.earlyad.adas13,
+                                dpm.data.earlyad.tplus.adas13,
+                                dpm.data.earlyad.neuroenriched.adas13)
 fulldpm.earlyad.adas13$Treatment <- fulldpm.earlyad.adas13$group
+
+
+fulldpm.earlyad.adas13.neuro <- rbind(dpm.data.earlyad.neuroenriched.adas13,
+                                      dpm.data.earlyad.neuroenriched.tplus.adas13)
+
+fulldpm.earlyad.adas13.neuro$Treatment <- fulldpm.earlyad.adas13.neuro$group
+
+
+
+
+#random intercept and slope
+formula.earlyad.adas13.rs <- "TOTAL13 ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+model.earlyad.adas13.rs <- MapLmer(newdata = long.earlyad.adas13_with_treatment,
+                                formula.model = formula.earlyad.adas13.rs)
+model.earlyad.tplus.adas13.rs <- MapLmer(newdata = long.earlyad.tplus.adas13_with_treatment,
+                                      formula.model = formula.earlyad.adas13.rs)
+model.earlyad.neuroenriched.adas13.rs <- MapLmer(newdata = long.earlyad.neuroenriched.adas13_with_treatment,
+                                              formula.model = formula.earlyad.adas13.rs)
+model.earlyad.neuroenriched.tplus.adas13.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.adas13_with_treatment,
+                                                 formula.model = formula.earlyad.adas13.rs)
+
+
+formula.earlyad.adas13.simulation.rs             <- "TOTAL13 ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+simulation.model.earlyad.adas13.rs               <- BuildSimulationModelNoPath(model.earlyad.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.adas13_with_treatment, "not-controlled")
+simulation.model.earlyad.tplus.adas13.rs         <- BuildSimulationModelNoPath(model.earlyad.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.tplus.adas13_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.adas13.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.neuroenriched.adas13_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.adas13.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.neuroenriched.tplus.adas13_with_treatment, "not-controlled")
+
+
+dpm.data.earlyad.adas13.rs <- get_model_data(simulation.model.earlyad.adas13.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.tplus.adas13.rs <- get_model_data(simulation.model.earlyad.tplus.adas13.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.adas13.rs <- get_model_data(simulation.model.earlyad.neuroenriched.adas13.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.adas13.rs <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.adas13.rs, terms = "new_time", type = "int") 
+
+dpm.data.earlyad.adas13.rs$Enrichment <- "No Enrichment"
+dpm.data.earlyad.tplus.adas13.rs$Enrichment <- "Tau+"
+dpm.data.earlyad.neuroenriched.adas13.rs$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.adas13.rs$Enrichment <- "No Copathologies Tau+"
+
+fulldpm.earlyad.adas13.rs <- rbind(dpm.data.earlyad.adas13.rs,
+                                dpm.data.earlyad.tplus.adas13.rs,
+                                dpm.data.earlyad.neuroenriched.adas13.rs)
+fulldpm.earlyad.adas13.rs$Treatment <- fulldpm.earlyad.adas13.rs$group
+
+
+fulldpm.earlyad.adas13.rs.neuro <- rbind(dpm.data.earlyad.neuroenriched.adas13.rs,
+                                      dpm.data.earlyad.neuroenriched.tplus.adas13.rs)
+
+fulldpm.earlyad.adas13.rs.neuro$Treatment <- fulldpm.earlyad.adas13.rs.neuro$group
+
+
+
 
 
 
@@ -633,7 +948,8 @@ model.earlyad.tplus.hipp <- MapLmer(newdata = long.earlyad.tplus.hipp_with_treat
                                       formula.model = formula.earlyad.hipp)
 model.earlyad.neuroenriched.hipp <- MapLmer(newdata = long.earlyad.neuroenriched.hipp_with_treatment,
                                               formula.model = formula.earlyad.hipp)
-
+model.earlyad.neuroenriched.tplus.hipp <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.hipp_with_treatment,
+                                                  formula.model = formula.earlyad.hipp)
 
 
 
@@ -641,83 +957,273 @@ formula.earlyad.hipp.simulation             <- "hipp_average ~ new_time*treat + 
 simulation.model.earlyad.hipp               <- BuildSimulationModelNoPath(model.earlyad.hipp, formula.earlyad.hipp.simulation, long.earlyad.hipp_with_treatment, "not-controlled")
 simulation.model.earlyad.tplus.hipp         <- BuildSimulationModelNoPath(model.earlyad.tplus.hipp, formula.earlyad.hipp.simulation, long.earlyad.tplus.hipp_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.hipp <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.hipp, formula.earlyad.hipp.simulation, long.earlyad.neuroenriched.hipp_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.hipp <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.hipp, formula.earlyad.hipp.simulation, long.earlyad.neuroenriched.tplus.hipp_with_treatment, "not-controlled")
 
 
 dpm.data.earlyad.hipp <- get_model_data(simulation.model.earlyad.hipp, terms = "new_time", type = "int") 
 dpm.data.earlyad.tplus.hipp <- get_model_data(simulation.model.earlyad.tplus.hipp, terms = "new_time", type = "int") 
 dpm.data.earlyad.neuroenriched.hipp <- get_model_data(simulation.model.earlyad.neuroenriched.hipp, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.hipp <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.hipp, terms = "new_time", type = "int") 
 
 dpm.data.earlyad.hipp$Enrichment <- "No Enrichment"
 dpm.data.earlyad.tplus.hipp$Enrichment <- "Tau+"
 dpm.data.earlyad.neuroenriched.hipp$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.hipp$Enrichment <- "No Copathologies Tau+"
 
-fulldpm.earlyad.hipp <- rbind(dpm.data.earlyad.hipp,dpm.data.earlyad.tplus.hipp,dpm.data.earlyad.neuroenriched.hipp)
+fulldpm.earlyad.hipp <- rbind(dpm.data.earlyad.hipp,
+                                dpm.data.earlyad.tplus.hipp,
+                                dpm.data.earlyad.neuroenriched.hipp)
 fulldpm.earlyad.hipp$Treatment <- fulldpm.earlyad.hipp$group
+
+
+fulldpm.earlyad.hipp.neuro <- rbind(dpm.data.earlyad.neuroenriched.hipp,
+                                      dpm.data.earlyad.neuroenriched.tplus.hipp)
+
+fulldpm.earlyad.hipp.neuro$Treatment <- fulldpm.earlyad.hipp.neuro$group
+
+
+
+
+#random intercept and slope
+formula.earlyad.hipp.rs <- "hipp_average ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+model.earlyad.hipp.rs <- MapLmer(newdata = long.earlyad.hipp_with_treatment,
+                                   formula.model = formula.earlyad.hipp.rs)
+model.earlyad.tplus.hipp.rs <- MapLmer(newdata = long.earlyad.tplus.hipp_with_treatment,
+                                         formula.model = formula.earlyad.hipp.rs)
+model.earlyad.neuroenriched.hipp.rs <- MapLmer(newdata = long.earlyad.neuroenriched.hipp_with_treatment,
+                                                 formula.model = formula.earlyad.hipp.rs)
+model.earlyad.neuroenriched.tplus.hipp.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.hipp_with_treatment,
+                                                       formula.model = formula.earlyad.hipp.rs)
+
+
+formula.earlyad.hipp.simulation.rs             <- "hipp_average ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+simulation.model.earlyad.hipp.rs               <- BuildSimulationModelNoPath(model.earlyad.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.hipp_with_treatment, "not-controlled")
+simulation.model.earlyad.tplus.hipp.rs         <- BuildSimulationModelNoPath(model.earlyad.tplus.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.tplus.hipp_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.hipp.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.neuroenriched.hipp_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.hipp.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.neuroenriched.tplus.hipp_with_treatment, "not-controlled")
+
+
+dpm.data.earlyad.hipp.rs <- get_model_data(simulation.model.earlyad.hipp.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.tplus.hipp.rs <- get_model_data(simulation.model.earlyad.tplus.hipp.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.hipp.rs <- get_model_data(simulation.model.earlyad.neuroenriched.hipp.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.hipp.rs <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.hipp.rs, terms = "new_time", type = "int") 
+
+dpm.data.earlyad.hipp.rs$Enrichment <- "No Enrichment"
+dpm.data.earlyad.tplus.hipp.rs$Enrichment <- "Tau+"
+dpm.data.earlyad.neuroenriched.hipp.rs$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.hipp.rs$Enrichment <- "No Copathologies Tau+"
+
+fulldpm.earlyad.hipp.rs <- rbind(dpm.data.earlyad.hipp.rs,
+                                   dpm.data.earlyad.tplus.hipp.rs,
+                                   dpm.data.earlyad.neuroenriched.hipp.rs)
+fulldpm.earlyad.hipp.rs$Treatment <- fulldpm.earlyad.hipp.rs$group
+
+
+fulldpm.earlyad.hipp.rs.neuro <- rbind(dpm.data.earlyad.neuroenriched.hipp.rs,
+                                         dpm.data.earlyad.neuroenriched.tplus.hipp.rs)
+
+fulldpm.earlyad.hipp.rs.neuro$Treatment <- fulldpm.earlyad.hipp.rs.neuro$group
 
 
 ######################## MPACC ######################## 
 formula.earlyad.mpacc <- "mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1|RID)"
 model.earlyad.mpacc <- MapLmer(newdata = long.earlyad.mpacc_with_treatment,
-                                formula.model = formula.earlyad.mpacc)
+                              formula.model = formula.earlyad.mpacc)
 model.earlyad.tplus.mpacc <- MapLmer(newdata = long.earlyad.tplus.mpacc_with_treatment,
-                                      formula.model = formula.earlyad.mpacc)
+                                    formula.model = formula.earlyad.mpacc)
 model.earlyad.neuroenriched.mpacc <- MapLmer(newdata = long.earlyad.neuroenriched.mpacc_with_treatment,
-                                              formula.model = formula.earlyad.mpacc)
-
-
+                                            formula.model = formula.earlyad.mpacc)
+model.earlyad.neuroenriched.tplus.mpacc <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.mpacc_with_treatment,
+                                                  formula.model = formula.earlyad.mpacc)
 
 
 formula.earlyad.mpacc.simulation             <- "mPACCtrailsB ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1|RID)"
 simulation.model.earlyad.mpacc               <- BuildSimulationModelNoPath(model.earlyad.mpacc, formula.earlyad.mpacc.simulation, long.earlyad.mpacc_with_treatment, "not-controlled")
 simulation.model.earlyad.tplus.mpacc         <- BuildSimulationModelNoPath(model.earlyad.tplus.mpacc, formula.earlyad.mpacc.simulation, long.earlyad.tplus.mpacc_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.mpacc <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.mpacc, formula.earlyad.mpacc.simulation, long.earlyad.neuroenriched.mpacc_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.mpacc <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.mpacc, formula.earlyad.mpacc.simulation, long.earlyad.neuroenriched.tplus.mpacc_with_treatment, "not-controlled")
 
 
 dpm.data.earlyad.mpacc <- get_model_data(simulation.model.earlyad.mpacc, terms = "new_time", type = "int") 
 dpm.data.earlyad.tplus.mpacc <- get_model_data(simulation.model.earlyad.tplus.mpacc, terms = "new_time", type = "int") 
 dpm.data.earlyad.neuroenriched.mpacc <- get_model_data(simulation.model.earlyad.neuroenriched.mpacc, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.mpacc <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.mpacc, terms = "new_time", type = "int") 
 
 dpm.data.earlyad.mpacc$Enrichment <- "No Enrichment"
 dpm.data.earlyad.tplus.mpacc$Enrichment <- "Tau+"
 dpm.data.earlyad.neuroenriched.mpacc$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.mpacc$Enrichment <- "No Copathologies Tau+"
 
-fulldpm.earlyad.mpacc <- rbind(dpm.data.earlyad.mpacc,dpm.data.earlyad.tplus.mpacc,dpm.data.earlyad.neuroenriched.mpacc)
+fulldpm.earlyad.mpacc <- rbind(dpm.data.earlyad.mpacc,
+                              dpm.data.earlyad.tplus.mpacc,
+                              dpm.data.earlyad.neuroenriched.mpacc)
 fulldpm.earlyad.mpacc$Treatment <- fulldpm.earlyad.mpacc$group
 
 
-earlyad.adas13.modeling.list <- list("data" = list("unenriched"=long.earlyad.adas13_with_treatment,
+fulldpm.earlyad.mpacc.neuro <- rbind(dpm.data.earlyad.neuroenriched.mpacc,
+                                    dpm.data.earlyad.neuroenriched.tplus.mpacc)
+
+fulldpm.earlyad.mpacc.neuro$Treatment <- fulldpm.earlyad.mpacc.neuro$group
+
+
+
+
+#random intercept and slope
+formula.earlyad.mpacc.rs <- "mPACCtrailsB ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+model.earlyad.mpacc.rs <- MapLmer(newdata = long.earlyad.mpacc_with_treatment,
+                                 formula.model = formula.earlyad.mpacc.rs)
+model.earlyad.tplus.mpacc.rs <- MapLmer(newdata = long.earlyad.tplus.mpacc_with_treatment,
+                                       formula.model = formula.earlyad.mpacc.rs)
+model.earlyad.neuroenriched.mpacc.rs <- MapLmer(newdata = long.earlyad.neuroenriched.mpacc_with_treatment,
+                                               formula.model = formula.earlyad.mpacc.rs)
+model.earlyad.neuroenriched.tplus.mpacc.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.mpacc_with_treatment,
+                                                     formula.model = formula.earlyad.mpacc.rs)
+
+
+formula.earlyad.mpacc.simulation.rs             <- "mPACCtrailsB ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+simulation.model.earlyad.mpacc.rs               <- BuildSimulationModelNoPath(model.earlyad.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.mpacc_with_treatment, "not-controlled")
+simulation.model.earlyad.tplus.mpacc.rs         <- BuildSimulationModelNoPath(model.earlyad.tplus.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.tplus.mpacc_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.mpacc.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.neuroenriched.mpacc_with_treatment, "not-controlled")
+simulation.model.earlyad.neuroenriched.tplus.mpacc.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.neuroenriched.tplus.mpacc_with_treatment, "not-controlled")
+
+
+dpm.data.earlyad.mpacc.rs <- get_model_data(simulation.model.earlyad.mpacc.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.tplus.mpacc.rs <- get_model_data(simulation.model.earlyad.tplus.mpacc.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.mpacc.rs <- get_model_data(simulation.model.earlyad.neuroenriched.mpacc.rs, terms = "new_time", type = "int") 
+dpm.data.earlyad.neuroenriched.tplus.mpacc.rs <- get_model_data(simulation.model.earlyad.neuroenriched.tplus.mpacc.rs, terms = "new_time", type = "int") 
+
+dpm.data.earlyad.mpacc.rs$Enrichment <- "No Enrichment"
+dpm.data.earlyad.tplus.mpacc.rs$Enrichment <- "Tau+"
+dpm.data.earlyad.neuroenriched.mpacc.rs$Enrichment <- "No Copathologies"
+dpm.data.earlyad.neuroenriched.tplus.mpacc.rs$Enrichment <- "No Copathologies Tau+"
+
+fulldpm.earlyad.mpacc.rs <- rbind(dpm.data.earlyad.mpacc.rs,
+                                   dpm.data.earlyad.tplus.mpacc.rs,
+                                   dpm.data.earlyad.neuroenriched.mpacc.rs)
+fulldpm.earlyad.mpacc.rs$Treatment <- fulldpm.earlyad.mpacc.rs$group
+
+
+fulldpm.earlyad.mpacc.rs.neuro <- rbind(dpm.data.earlyad.neuroenriched.mpacc.rs,
+                                         dpm.data.earlyad.neuroenriched.tplus.mpacc.rs)
+
+fulldpm.earlyad.mpacc.rs.neuro$Treatment <- fulldpm.earlyad.mpacc.rs.neuro$group
+fulldpm.earlyad.mpacc.rs.neuro$inter <- interaction(fulldpm.earlyad.mpacc.rs.neuro$Treatment, fulldpm.earlyad.mpacc.rs.neuro$Enrichment)
+
+
+ggplot(fulldpm.earlyad.mpacc.rs.neuro, aes(x=x, y=predicted, colour=Enrichment)) + geom_line(aes(linetype=Treatment))
+ggplot(fulldpm.earlyad.mpacc.rs.neuro, aes(x=x, y=predicted, colour=Enrichment)) + geom_line(aes(linetype=Treatment))
+
+
+############### saving RDS files ###############
+
+
+earlyad.adas13.modeling.list <- list("sim.data" = list("unenriched"=long.earlyad.adas13_with_treatment,
                                                   "taupos"=long.earlyad.tplus.adas13_with_treatment,
                                                   "nocopath"=long.earlyad.neuroenriched.adas13_with_treatment),
-                                    "models" = list("unenriched"=model.earlyad.adas13,
-                                                    "taupos"=model.earlyad.tplus.adas13,
-                                                    "nocopath"=model.earlyad.neuroenriched.adas13),
+                                    "model" = list("unenriched"=simulation.model.earlyad.adas13,
+                                                    "taupos"=simulation.model.earlyad.tplus.adas13,
+                                                    "nocopath"=simulation.model.earlyad.neuroenriched.adas13),
                                     "formula" = replicate(3,formula.earlyad.adas13.simulation, simplify = FALSE),
-                                    "fcompare" = replicate(3,formula.earlyad.adas13, simplify = FALSE),
+                                    "compare_str" = replicate(3,formula.earlyad.adas13, simplify = FALSE),
                                     "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
-                                    "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE))
+                                    "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE),
+                                    "return_dpm" = replicate(3, FALSE, simplify = FALSE))
 
-earlyad.hipp.modeling.list <- list("data" = list("unenriched"=long.earlyad.hipp_with_treatment,
+
+
+earlyad.adas13.modeling.list.rs <- list("sim.data" = list("unenriched"=long.earlyad.adas13_with_treatment,
+                                                       "taupos"=long.earlyad.tplus.adas13_with_treatment,
+                                                       "nocopath_tau+"=long.earlyad.neuroenriched.tplus.adas13_with_treatment),
+                                     "model" = list("unenriched"=simulation.model.earlyad.adas13.rs,
+                                                    "taupos"=simulation.model.earlyad.tplus.adas13.rs,
+                                                    "nocopath_tau+"=simulation.model.earlyad.neuroenriched.tplus.adas13.rs),
+                                     "formula" = replicate(3,formula.earlyad.adas13.simulation.rs, simplify = FALSE),
+                                     "compare_str" = replicate(3,formula.earlyad.adas13.rs, simplify = FALSE),
+                                     "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
+                                     "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE),
+                                     "return_dpm" = replicate(3, FALSE, simplify = FALSE))
+
+
+
+earlyad.hipp.modeling.list <- list("sim.data" = list("unenriched"=long.earlyad.hipp_with_treatment,
                                                    "taupos"=long.earlyad.tplus.hipp_with_treatment,
                                                    "nocopath"=long.earlyad.neuroenriched.hipp_with_treatment),
-                                     "models" = list("unenriched"=model.earlyad.hipp,
-                                                     "taupos"=model.earlyad.tplus.hipp,
-                                                     "nocopath"=model.earlyad.neuroenriched.hipp),
+                                     "model" = list("unenriched"=simulation.model.earlyad.hipp,
+                                                     "taupos"=simulation.model.earlyad.tplus.hipp,
+                                                     "nocopath"=simulation.model.earlyad.neuroenriched.hipp),
                                      "formula" = replicate(3,formula.earlyad.hipp.simulation, simplify = FALSE),
-                                     "fcompare" = replicate(3,formula.earlyad.hipp, simplify = FALSE),
+                                     "compare_str" = replicate(3,formula.earlyad.hipp, simplify = FALSE),
                                      "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
-                                     "yaxislab_dpm" = replicate(3, "Hippocampus", simplify = FALSE))
+                                     "yaxislab_dpm" = replicate(3, "Hippocampus", simplify = FALSE),
+                                    "return_dpm" = replicate(3, FALSE, simplify = FALSE))
 
 
-earlyad.mpacc.modeling.list <- list("data" = list("unenriched"=long.earlyad.mpacc_with_treatment,
+
+earlyad.hipp.modeling.list.rs <- list("sim.data" = list("unenriched"=long.earlyad.hipp_with_treatment,
+                                                          "taupos"=long.earlyad.tplus.hipp_with_treatment,
+                                                          "nocopath_tau+"=long.earlyad.neuroenriched.tplus.hipp_with_treatment),
+                                        "model" = list("unenriched"=simulation.model.earlyad.hipp.rs,
+                                                       "taupos"=simulation.model.earlyad.tplus.hipp.rs,
+                                                       "nocopath_tau+"=simulation.model.earlyad.neuroenriched.tplus.hipp.rs),
+                                        "formula" = replicate(3,formula.earlyad.hipp.simulation.rs, simplify = FALSE),
+                                        "compare_str" = replicate(3,formula.earlyad.hipp.rs, simplify = FALSE),
+                                        "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
+                                        "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE),
+                                        "return_dpm" = replicate(3, FALSE, simplify = FALSE))
+
+
+
+
+
+
+earlyad.mpacc.modeling.list <- list("sim.data" = list("unenriched"=long.earlyad.mpacc_with_treatment,
                                                    "taupos"=long.earlyad.tplus.mpacc_with_treatment,
                                                    "nocopath"=long.earlyad.neuroenriched.mpacc_with_treatment),
-                                     "models" = list("unenriched"=model.earlyad.mpacc,
-                                                     "taupos"=model.earlyad.tplus.mpacc,
-                                                     "nocopath"=model.earlyad.neuroenriched.mpacc),
+                                     "model" = list("unenriched"=simulation.model.earlyad.mpacc,
+                                                     "taupos"=simulation.model.earlyad.tplus.mpacc,
+                                                     "nocopath"=simulation.model.earlyad.neuroenriched.mpacc),
                                      "formula" = replicate(3,formula.earlyad.mpacc.simulation, simplify = FALSE),
-                                     "fcompare" = replicate(3,formula.earlyad.mpacc, simplify = FALSE),
+                                     "compare_str" = replicate(3,formula.earlyad.mpacc, simplify = FALSE),
                                      "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
-                                     "yaxislab_dpm" = replicate(3, "mPACCtrailsB", simplify = FALSE))
+                                     "yaxislab_dpm" = replicate(3, "mPACCtrailsB", simplify = FALSE),
+                                    "return_dpm" = replicate(3, FALSE, simplify = FALSE))
+
+
+
+
+earlyad.mpacc.modeling.list.rs <- list("sim.data" = list("unenriched"=long.earlyad.mpacc_with_treatment,
+                                                          "taupos"=long.earlyad.tplus.mpacc_with_treatment,
+                                                          "nocopath_tau+"=long.earlyad.neuroenriched.tplus.mpacc_with_treatment),
+                                        "model" = list("unenriched"=simulation.model.earlyad.mpacc.rs,
+                                                       "taupos"=simulation.model.earlyad.tplus.mpacc.rs,
+                                                       "nocopath_tau+"=simulation.model.earlyad.neuroenriched.tplus.mpacc.rs),
+                                        "formula" = replicate(3,formula.earlyad.mpacc.simulation.rs, simplify = FALSE),
+                                        "compare_str" = replicate(3,formula.earlyad.mpacc.rs, simplify = FALSE),
+                                        "breaks" = replicate(3, seq(100, 1000, by=100), simplify = FALSE),
+                                        "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE),
+                                        "return_dpm" = replicate(3, FALSE, simplify = FALSE))
+
+
+
+
+
+
+#random intercept
+saveRDS(earlyad.adas13.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.adas13_4sim.rds")
+saveRDS(earlyad.hipp.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.hipp_4sim.rds")
+saveRDS(earlyad.mpacc.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.mpacc_4sim.rds")
+
+
+#random slope and intercept
+saveRDS(earlyad.adas13.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.adas13_4sim_rs.rds")
+saveRDS(earlyad.hipp.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.hipp_4sim_rs.rds")
+saveRDS(earlyad.mpacc.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.mpacc_4sim_rs.rds")
+
+
+
+
+
+
 
 
 
