@@ -76,10 +76,12 @@ full.data.list <- list("ADAS11"      = combined.11,
                        "EF"          = combined.mem,
                        "LH"          = combined.image,
                        "RH"          = combined.image) #use same dataset for ADNI EF and ADNI MEM
-full.data.list <- Map(QuickAdjust, full.data.list)
 
+full.data.list <- Map(QuickAdjust, full.data.list)
 control.cohort                     <- lapply(full.data.list, function(x)  subset(x, new_time==0 &  AGE_bl >= 65 & AGE_bl <= 85 & DX_bl=="CN" & AmyPos_full_bl==0 & TauPos_full_bl == 0 & CDGLOBAL_bl == 0 & fulllewy == 0 & fulltdp43 == 0 & fullcaa == 0 & MMSE_bl >=25))
 control.cohort.long                <- purrr::map2(control.cohort, full.data.list, PullLongData)
+
+
 
 full.data.list.zscored <- pmap(list(full.data.list, c("TOTAL11", "TOTAL13", "CDRSB","MMSE", "mPACCtrailsB", "ADNI_MEM", "ADNI_EF", "ST29SV_harmonized_icv_adj", "ST88SV_harmonized_icv_adj"), control.cohort.long), ZscoreAdj)
 zscore.no.controls     <- pmap(list(full.data.list, c("TOTAL11", "TOTAL13", "CDRSB","MMSE", "mPACCtrailsB", "ADNI_MEM", "ADNI_EF", "ST29SV_harmonized_icv_adj", "ST88SV_harmonized_icv_adj"), full.data.list), ZscoreAdj)
@@ -91,32 +93,38 @@ mci.scen1.generic                  <- lapply(full.data.list, function(x)  subset
 mci.scen1.generic.tplus            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & TauPos_full_bl==1 &  AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30))
 mci.scen1.earlyage                 <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & CDGLOBAL_bl == 0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & AGE >=50 & AGE <= 65))
 mci.scen1.no.path                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & fulllewy==0 & fullcaa==0 & fulltdp43==0))
+mci.scen1.no.path.tplus            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="MCI" & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl >= 65 & AGE_bl <= 85 & CDGLOBAL_bl==0.5 & MMSE_bl >=24 & MMSE_bl <= 30 & fulllewy==0 & fullcaa==0 & fulltdp43==0))
 
 mci.scen1.generic.long             <- purrr::map2(mci.scen1.generic, full.data.list, PullLongData)
 mci.scen1.generic.long.tplus       <- purrr::map2(mci.scen1.generic.tplus, full.data.list, PullLongData)
 mci.scen1.earlyage.long            <- purrr::map2(mci.scen1.earlyage, full.data.list, PullLongData)
 mci.scen1.no.path.long             <- purrr::map2(mci.scen1.no.path, full.data.list, PullLongData)
+mci.scen1.no.path.tplus.long       <- purrr::map2(mci.scen1.no.path.tplus, full.data.list, PullLongData)
 
 
 early.ad.scen1.generic            <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
 early.ad.scen1.generic.tplus      <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
 early.ad.scen1.earlyage           <- lapply(full.data.list, function(x)  subset(x,  new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl >=55 & AGE_bl <= 65 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1)))
 early.ad.scen1.nopath             <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fulllewy==0 & fullcaa==0 & fulltdp43==0))
+early.ad.scen1.nopath.tplus       <- lapply(full.data.list, function(x)  subset(x, new_time==0 & (DX_bl=="Dementia" | DX_bl=="MCI") & AmyPos_full_bl==1 & TauPos_full_bl==1 & AGE_bl>=65 & AGE_bl <= 85 & MMSE_bl >=20 & MMSE_bl <= 28 & (CDGLOBAL_bl==.5 | CDGLOBAL_bl==1) & fulllewy==0 & fullcaa==0 & fulltdp43==0))
 
 early.ad.scen1.generic.long        <- purrr::map2(early.ad.scen1.generic, full.data.list, PullLongData)
 early.ad.scen1.generic.long.tplus  <- purrr::map2(early.ad.scen1.generic.tplus, full.data.list, PullLongData)
 early.ad.scen1.earlyage.long       <- purrr::map2(early.ad.scen1.earlyage, full.data.list, PullLongData)
 early.ad.scen1.nopath.long         <- purrr::map2(early.ad.scen1.nopath, full.data.list, PullLongData)
+early.ad.scen1.nopath.tplus.long   <- purrr::map2(early.ad.scen1.nopath.tplus, full.data.list, PullLongData)
 
 ad.scen1.generic                   <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85))
 ad.scen1.generic.tplus             <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & TauPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85))
 ad.scen1.earlyage                  <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=55 & AGE_bl <= 65))
 ad.scen1.nopath                    <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85 & fulllewy==0 & fullcaa==0 & fulltdp43==0))
+ad.scen1.nopath.tplus              <- lapply(full.data.list, function(x)  subset(x, new_time==0 & DX_bl=="Dementia" & AmyPos_full_bl==1 & TauPos_full_bl==1 & CDGLOBAL_bl >= 1 & MMSE_bl >=20 & MMSE_bl <= 26 & AGE_bl >=65 & AGE_bl <= 85 & fulllewy==0 & fullcaa==0 & fulltdp43==0))
 
 ad.scen1.generic.long              <- purrr::map2(ad.scen1.generic, full.data.list, PullLongData)
 ad.scen1.generic.long.tplus        <- purrr::map2(ad.scen1.generic.tplus, full.data.list, PullLongData)
 ad.scen1.earlyage.long             <- purrr::map2(ad.scen1.earlyage, full.data.list, PullLongData)
 ad.scen1.nopath.long               <- purrr::map2(ad.scen1.nopath, full.data.list, PullLongData)
+ad.scen1.nopath.tplus.long         <- purrr::map2(ad.scen1.nopath.tplus, full.data.list, PullLongData)
 
 baseline.control.data <- list("control" = control.cohort)
 full.control.data     <- list("control" = control.cohort.long)
@@ -144,11 +152,15 @@ full.enriched.data <- list("mci"              = mci.scen1.generic.long,
 
 full.nopath.data.baseline   <- list("mci"     = mci.scen1.no.path,
                                 "earlyad" = early.ad.scen1.nopath,
-                                "ad"      = ad.scen1.nopath)
+                                "ad"      = ad.scen1.nopath,
+                                "earlyad.tplus" = early.ad.scen1.nopath.tplus,
+                                "ad.tplus" = ad.scen1.nopath.tplus)
 
 full.nopath.data.long   <- list("mci"     = mci.scen1.no.path.long,
                            "earlyad" = early.ad.scen1.nopath.long,
-                           "ad"      = ad.scen1.nopath.long)
+                           "ad"      = ad.scen1.nopath.long,
+                           "earlyad.tplus" = early.ad.scen1.nopath.tplus.long,
+                           "ad.tplus" = ad.scen1.nopath.tplus.long)
 
 
 strat.continuous <- replicate(7, c("PTEDUCAT_bl", "AGE_bl"), simplify = FALSE)
@@ -308,7 +320,6 @@ list_for_modeling <- list("treatment.enrichment.list"  = treatment.enrichment.li
 
 saveRDS(list_for_modeling, "/Users/adamgabriellang/Desktop/clinical_trial_sim/list_for_modeling_minus_control_2.rds")
 
-View(adjusted.lmes)
 
 #####################################################################  NO NEUROPATHOLOGIES!!!!!!!!!!!!! ################################################################# 
 # stratify continuous variables and assign treatment based on block randomization
@@ -443,6 +454,21 @@ testallsim2 <- readRDS("~/Desktop/clinical_trial_sim/allsimspt2_2.rds")
 testallsim2<-testallsim2[4:6]
 testallsim2[[1]][[7]]
 
+
 saveRDS(list("cs"=early.ad.scen1.generic, "long"=early.ad.scen1.generic.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts.rds")
 saveRDS(list("cs"=early.ad.scen1.generic.tplus, "long"=early.ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_tplus.rds")
+saveRDS(list("cs"=early.ad.scen1.nopath, "long"=early.ad.scen1.nopath.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_neuroenriched.rds")
+saveRDS(list("cs"=early.ad.scen1.nopath.tplus, "long"=early.ad.scen1.nopath.tplus.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyagecohorts_neuroenriched_tplus.rds")
+
+
+saveRDS(list("cs"=ad.scen1.generic, "long"=ad.scen1.generic.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adcohorts.rds")
+saveRDS(list("cs"=ad.scen1.generic.tplus, "long"=ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adcohorts_tplus.rds")
+saveRDS(list("cs"=ad.scen1.nopath, "long"=ad.scen1.nopath.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adcohorts_neuroenriched.rds")
+saveRDS(list("cs"=ad.scen1.nopath.tplus, "long"=ad.scen1.nopath.tplus.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adcohorts_neuroenriched_tplus.rds")
+
+
+saveRDS(list("cs"=mci.scen1.generic, "long"=mci.scen1.generic.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/mcicohorts.rds")
+saveRDS(list("cs"=mci.scen1.generic.tplus, "long"=mci.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/mcicohorts_tplus.rds")
+saveRDS(list("cs"=mci.scen1.no.path, "long"=mci.scen1.no.path.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/mcicohorts_neuroenriched.rds")
+saveRDS(list("cs"=mci.scen1.no.path.tplus, "long"=mci.scen1.no.path.tplus.long), "/Users/adamgabriellang/Desktop/clinical_trial_sim/mcicohorts_neuroenriched_tplus.rds")
 

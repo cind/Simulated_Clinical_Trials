@@ -25,22 +25,9 @@
 
 
 
-feature.correction <- function(training.data,  data, formula, cr.feat1, feat) {
-  model <- lm(formula = as.formula(formula), data = training.data)
-  mean.val1 <- mean(training.data[[cr.feat1]])
-  mean.val1 <- rep(mean.val1, nrow(data))
-  coef.correction1 <- model$coefficients[[cr.feat1]]
-  new.feat <- data[[feat]]
-  new.feat <- (new.feat - (coef.correction1*data[[cr.feat1]]))
-  new.feat <- new.feat  + (coef.correction1*mean.val1)
-  return(new.feat)
-}
-
-
 
 source.script <- FALSE
 library(zoo)
-#library(simstudy)
 library(ADNIMERGE)
 library(plyr)
 library(dplyr)
@@ -54,6 +41,7 @@ library(lmerTest)
 library(splitstackshape)
 library(purrr)
 library(ggplot2)
+
 #CDR
 cdr_global           <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/CDR (1).csv")
 cdr_global$EXAMDATE  <- as.POSIXct(cdr_global$EXAMDATE, format="%Y-%M-%D")
@@ -247,7 +235,7 @@ imaging_to_remerge <- image_data_for_adj[,c(image_columns.adj, "image_remerging"
 adas_merge_demog <- merge(adas_merge_demog, imaging_to_remerge, by="image_remerging", all.x = TRUE)
 
 
-
+if(FALSE) {
 
 
 
@@ -1930,5 +1918,6 @@ ad2.analyzed <- PlotObsData(data.ad2,formula.fixed = "TOTAL11 ~ new_time", ylab=
 ad2.analyzed
 ad2.analyzed.cdr <- PlotObsData(data.ad2,formula.fixed = "CDRSB ~ new_time", ylab= "CDRSB")
 ad2.analyzed.cdr
+}
 }
 }

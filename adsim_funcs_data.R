@@ -1,5 +1,18 @@
 library(survey)
-
+library(zoo)
+library(ADNIMERGE)
+library(plyr)
+library(dplyr)
+library(furniture)
+library(lme4)
+library(nlme)
+library(simr)
+library(stringr)
+library(matrixStats)
+library(lmerTest)
+library(splitstackshape)
+library(purrr)
+library(ggplot2)
 
 `%notin%` <- Negate(`%in%`)
 
@@ -501,7 +514,7 @@ RandomizeTreatment <- function(data) {
 
 
 
-SampleSizeSimulation2 <- function(sim.data, formula, compare_str, breaks, yaxislab_dpm, model, return_dpm=FALSE) {
+SampleSizeSimulation2 <- function(sim.data, model, formula, compare_str, breaks, yaxislab_dpm, return_dpm=FALSE) {
   placebo <- sim.data
   placebo <- placebo[order(placebo$RID, placebo$new_time, decreasing = FALSE),]
   placebo$treat <- rep(0, nrow(placebo))
@@ -569,8 +582,8 @@ BuildSimulationModel <- function(list, formula.model, data, treatment.effect, es
 
 
 BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effect) {
-  model            <- list[[1]]
-  adjusted.decline <- list[[2]]
+  model            <- list
+  #adjusted.decline <- list[[2]]
   fixd             <- fixef(model)
   fixd["treat1"]   <- 0
   if(treatment.effect =="controlled") {
@@ -578,12 +591,10 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   } else {
     fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
   }
-  
-  
-  fixd                        <- fixd[c( "(Intercept)", "new_time", "treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale")]
+  fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
   sigma.mod        <- summary(model)$sigma
-  varcor.mod       <- as.numeric(summary(model)$varcor[[1]])
-  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=list(varcor.mod), sigma = sigma.mod, data = data)
+  varcor.mod       <- VarCorr(model)
+  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
   return(constr.lme)
 }
 
@@ -655,9 +666,10 @@ ZscoreAdj <- function(data, col_names, control.data) {
 }
 
 
-RandomizeTreatment2 <- function(data, stratcolumns, longdata) {
-  stratifydf          <- data[,c("RID", stratcolumns)]
-  stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat)
+RandomizeTreatment2 <- function(data, longdata) {
+  stratifydf <- data
+  stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
+                                     stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_full_bl)
   stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
   treatmentrids       <- unique(stratifieddata$RID)
   controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
@@ -765,3 +777,164 @@ RegressNeuro <- function(data, es, outcome) {
   return(data)
 }
 
+
+
+feature.correction <- function(training.data,  data, formula, cr.feat1, feat) {
+  model <- lm(formula = as.formula(formula), data = training.data)
+  mean.val1 <- mean(training.data[[cr.feat1]])
+  mean.val1 <- rep(mean.val1, nrow(data))
+  coef.correction1 <- model$coefficients[[cr.feat1]]
+  new.feat <- data[[feat]]
+  new.feat <- (new.feat - (coef.correction1*data[[cr.feat1]]))
+  new.feat <- new.feat  + (coef.correction1*mean.val1)
+  return(new.feat)
+}
+
+MMRMTime <- function(data) {
+  #data$new_time_mmrm <- NA
+  #data["new_time_mmrm"][which(data$new_time==0), ] <- 1
+  #data["new_time_mmrm"][which(data$new_time==.5), ] <- 2
+  #data["new_time_mmrm"][which(data$new_time==1), ] <- 3
+  #data["new_time_mmrm"][which(data$new_time==1.5), ] <- 4
+  #data["new_time_mmrm"][which(data$new_time==2), ] <- 5
+  new_time_vec <- unique(data$new_time)
+  new_time_vec <- new_time_vec[order(new_time_vec, decreasing = FALSE)]
+  new_time_match <- 1:length(new_time_vec)
+  data$new_time_mmrm <- NA
+  for(i in 1:length(new_time_match)) {
+  data["new_time_mmrm"][which(data$new_time==new_time_vec[i]), ] <- new_time_match[i]
+  }
+return(data)
+}
+
+
+AdjustNeuropathEffect <- function(data) {
+  Boyle.Data <- data.frame("Variable" = c("Age at death",
+                                          "Female sex",
+                                          "Education",
+                                          "Lewy body",
+                                          "CAA",
+                                          "TDP43",
+                                          "AD"),
+                           
+                           "CognitiveLevel" = c(0.003,
+                                                0.111,
+                                                0.037,
+                                                -0.592,
+                                                -0.265,
+                                                -0.347,
+                                                -0.679),
+                           
+                           "CognitiveDecline" = c(0.002,
+                                                  0.015,
+                                                  0.001,
+                                                  -0.062,
+                                                  -0.018,
+                                                  -0.032,
+                                                  -0.062),
+                           "RelativeLevel" = c(NA,          # % change in intercept 
+                                               NA,
+                                               NA,
+                                               .3143,
+                                               .1407,
+                                               .184,
+                                               .3605),
+                           
+                           "RelativeDecline" = c(NA,        # % change in cognitive decline
+                                                 NA,
+                                                 NA,
+                                                 .3563,
+                                                 .1034,
+                                                 .1839,
+                                                 .3563)
+                           )
+  
+  
+  
+  
+  
+  }
+
+
+
+CalculateSampleAtPower <- function(mean.points, conf.low.points, conf.hi.points, y=80) {
+  m.mean     <- (mean.points[2] - mean.points[1]) / (mean.points[4] - mean.points[3])
+  conf.low.m <- (conf.low.points[2] - conf.low.points[1]) / (conf.low.points[4] - conf.low.points[3])
+  conf.hi.m <- (conf.hi.points[2] - conf.hi.points[1]) / (conf.hi.points[4] - conf.hi.points[3])
+  mean.shift <- (80-mean.points[1]) / m.mean
+  new.x <- mean.points[3] + mean.shift
+  conf.low.m.shift <- (80 - conf.low.points[1]) / conf.low.m
+  new.conf.low <- conf.low.points[3] + conf.low.m.shift
+  
+  conf.hi.m.shift <- (80 - conf.hi.points[1]) / conf.hi.m
+  new.conf.hi <- conf.hi.points[3] + conf.hi.m.shift
+  
+  return(c("mean" = new.x, "ci.low" = new.conf.low, "ci.high" = new.conf.hi))
+  }
+
+
+
+Keep1YearorMore <- function(data.list) {
+  data.long <- data.list[["long"]]
+  data.cs   <- data.list[["cs"]]
+  newlist.cs <- list()
+  newlist.long <- list()
+  
+  names.list <- names(data.long)
+  for(i in 1:length(data.long)) {
+  df <- data.long[[i]]
+  df.cs <-  data.cs[[i]]
+  df$RID <- factor(df$RID)
+  rid.drops <- names(which(unlist(Map(nrow, (split(df, df$RID)))) <= 2))
+  df <- subset(df, RID %notin% rid.drops)
+  df.cs <- subset(df.cs, RID %notin% rid.drops)
+  df$RID <- factor(df$RID)
+  df.cs$RID <- factor(df.cs$RID)
+  newlist.cs[[i]] <- df.cs
+  newlist.long[[i]] <- df
+  
+ }
+  names(newlist.cs)   <- names.list
+  names(newlist.long) <- names.list
+  newlist <- list("cs" = newlist.cs,
+                  "long" = newlist.long)
+  return(newlist)
+}
+
+PlotSimulationLME <- function(model, data, y, ylab, rids) {
+  newdat <- expand.grid(new_time=unique(data$new_time),
+                                              PTEDUCAT_bl= unique(data$PTEDUCAT_bl),
+                                               AGE_bl = seq(min(data$AGE_bl), max(data$AGE_bl)),
+                                               PTGENDER_bl= unique(data$PTGENDER_bl),
+                                               MMSE_bl= unique(data$MMSE_bl),
+                                               CDGLOBAL_bl= unique(data$CDGLOBAL_bl))
+  data$predict_subj_spec <- predict(model, data)
+  spec.data <- subset(data, RID %in% rids)
+  newdat$global_prediction <- predict(model, newdata=newdat, re.form=NA)
+  plot <-ggplot(newdat, aes(x=new_time, y=global_prediction)) + geom_smooth(method="lm", formula = y ~x) + geom_line(data = spec.data, aes(x=new_time, y=predict_subj_spec, colour=RID)) + geom_point(data = spec.data, aes_string(x="new_time", y=y, colour="RID"))
+  plot <- plot + scale_colour_discrete(guide = "none") + xlab("Time (Years)") + ylab(ylab)
+  return(plot)
+}
+
+PlotSimulationDPM <- function(model, data, y, ylab) {
+  newdattreat <- expand.grid(new_time=unique(data$new_time),
+                        PTEDUCAT_bl= unique(data$PTEDUCAT_bl),
+                        AGE_bl = seq(min(data$AGE_bl), max(data$AGE_bl)),
+                        PTGENDER_bl= unique(data$PTGENDER_bl),
+                        MMSE_bl= unique(data$MMSE_bl),
+                        CDGLOBAL_bl= unique(data$CDGLOBAL_bl))
+  newdatplacebo <- expand.grid(new_time=unique(data$new_time),
+                             PTEDUCAT_bl= unique(data$PTEDUCAT_bl),
+                             AGE_bl = seq(min(data$AGE_bl), max(data$AGE_bl)),
+                             PTGENDER_bl= unique(data$PTGENDER_bl),
+                             MMSE_bl= unique(data$MMSE_bl),
+                             CDGLOBAL_bl= unique(data$CDGLOBAL_bl))
+  newdattreat$treat<-1
+  newdatplacebo$treat<-0
+  newdat <- rbind(newdattreat, newdatplacebo)
+  newdat$treat <- factor(newdat$treat)
+  newdat$global_prediction <- predict(model, newdata=newdat, re.form=NA)
+  plot <-ggplot(newdat, aes(x=new_time, y=global_prediction, linetype=treat)) + geom_smooth(method="lm", formula = y ~x) 
+  plot <- plot + xlab("Time (Years)") + ylab(ylab)
+  return(plot)
+}
