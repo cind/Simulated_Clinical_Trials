@@ -10,6 +10,7 @@ earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/cl
 
 
 #keeping subjects with 3 or more time points
+#update descriptive statistics in powerpoint as this will remove a few subjects
 earlyadcohorts <- Keep1YearorMore(earlyadcohorts)
 earlyadcohorts.tplus <- Keep1YearorMore(earlyadcohorts.tplus)
 earlyadcohorts.neuroenriched <- Keep1YearorMore(earlyadcohorts.neuroenriched)
