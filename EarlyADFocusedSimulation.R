@@ -8,7 +8,6 @@ earlyadcohorts.neuroenriched <- readRDS("/Users/adamgabriellang/Desktop/clinical
 earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_neuroenriched_tplus.rds")
 
 
-
 #keeping subjects with 3 or more time points
 #update descriptive statistics and a few plots in powerpoint as this will remove a few subjects
 earlyadcohorts <- Keep1YearorMore(earlyadcohorts)
@@ -252,7 +251,7 @@ earlyad.neuroenriched.tplus.hipp.desc <- earlyad.neuroenriched.tplus.hipp.desc$T
 earlyad.neuroenriched.tplus.hipp.desc <- earlyad.neuroenriched.tplus.hipp.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.tplus.hipp.desc)),]
 
 
-
+View(earlyad.adas13.desc)
 
 ######################## MPACC ######################## 
 
@@ -770,9 +769,8 @@ simulation.model.earlyad.tplus.adas13         <- BuildSimulationModelNoPath(mode
 simulation.model.earlyad.neuroenriched.adas13 <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.adas13, formula.earlyad.adas13.simulation, long.earlyad.neuroenriched.adas13_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.tplus.adas13 <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.adas13, formula.earlyad.adas13.simulation, long.earlyad.neuroenriched.tplus.adas13_with_treatment, "not-controlled")
 
-summary(simulation.model.earlyad.mpacc.rs)
-summary(simulation.model.earlyad.tplus.mpacc.rs)
-summary(simulation.model.earlyad.neuroenriched.tplus.mpacc.rs)
+
+View(long.earlyad.adas13_with_treatment[,c("fulllewy", "fullcaa", "fulltdp43")])
 
 
 
@@ -844,8 +842,15 @@ fulldpm.earlyad.adas13.rs.neuro <- rbind(dpm.data.earlyad.neuroenriched.adas13.r
 fulldpm.earlyad.adas13.rs.neuro$Treatment <- fulldpm.earlyad.adas13.rs.neuro$group
 
 
-######################## HIPPOCAMPUS ######################## 
+GetRelContributions(model.earlyad.adas13.rs, long.earlyad.adas13_with_treatment)
 
+
+
+
+
+
+
+######################## HIPPOCAMPUS ######################## 
 formula.earlyad.hipp <- "hipp_average ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1|RID)"
 model.earlyad.hipp <- MapLmer(newdata = long.earlyad.hipp_with_treatment,
                                 formula.model = formula.earlyad.hipp)
@@ -855,7 +860,6 @@ model.earlyad.neuroenriched.hipp <- MapLmer(newdata = long.earlyad.neuroenriched
                                               formula.model = formula.earlyad.hipp)
 model.earlyad.neuroenriched.tplus.hipp <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.hipp_with_treatment,
                                                   formula.model = formula.earlyad.hipp)
-
 
 
 formula.earlyad.hipp.simulation             <- "hipp_average ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1|RID)"
@@ -885,6 +889,7 @@ fulldpm.earlyad.hipp.neuro <- rbind(dpm.data.earlyad.neuroenriched.hipp,
                                       dpm.data.earlyad.neuroenriched.tplus.hipp)
 
 fulldpm.earlyad.hipp.neuro$Treatment <- fulldpm.earlyad.hipp.neuro$group
+
 
 
 
@@ -964,18 +969,10 @@ fulldpm.earlyad.mpacc <- rbind(dpm.data.earlyad.mpacc,
                               dpm.data.earlyad.neuroenriched.mpacc)
 fulldpm.earlyad.mpacc$Treatment <- fulldpm.earlyad.mpacc$group
 
-
 fulldpm.earlyad.mpacc.neuro <- rbind(dpm.data.earlyad.neuroenriched.mpacc,
                                     dpm.data.earlyad.neuroenriched.tplus.mpacc)
 
 fulldpm.earlyad.mpacc.neuro$Treatment <- fulldpm.earlyad.mpacc.neuro$group
-
-
-
-
-ggplot(dpm.data.earlyad.tplus.hipp.rs, aes(x=x, y=predicted, fill=Enrichment)) + geom_line(aes(linetype=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, alpha=.01, group=group))
-
-
 
 
 
@@ -1020,8 +1017,16 @@ fulldpm.earlyad.mpacc.rs.neuro <- rbind(dpm.data.earlyad.neuroenriched.mpacc.rs,
 
 
 
+checkrel <- GetRelContributions(model.earlyad.mpacc.rs, long.earlyad.mpacc_with_treatment)
 
-
+testplotdata <- checkrel[[3]]
+fixef(model.earlyad.mpacc.rs)
+fixef(model.earlyad.tplus.hipp.rs)
+length(which(testplotdata$AD==1))
+testplotdata$Path <- c("Lewy", "CAA", "TDP43", "AD")
+View(testplotdata2)
+ggplot(testplotdata, aes(x=Path, y=Mean, colour=Path)) + geom_errorbar(aes(ymin=Ci.low, ymax=Ci.high)) +ylab("% Contribution") + xlab("Pathology") +ylim(0, 100)
+View(earlyad.tplus.adas13.desc)
 ############### saving RDS files ###############
 
 if(FALSE) {

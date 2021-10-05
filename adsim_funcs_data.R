@@ -938,3 +938,59 @@ PlotSimulationDPM <- function(model, data, y, ylab) {
   plot <- plot + xlab("Time (Years)") + ylab(ylab)
   return(plot)
 }
+
+
+GetRelContributions <- function(model, data) {
+  neuropat <- data[,c("fulllewy", "fullcaa", "fulltdp43")]
+  fullrate <- fixef(model)["new_time"]
+  ranefmodel<- ranef(model)[[1]]
+  ranefrate <- ranefmodel[[2]]
+  ranef.ids <- rownames(ranefmodel)
+  subjectdecline <- fullrate + ranefrate
+  frame <- data.frame("RID" = ranef.ids,
+                      "Rate_Decline" = subjectdecline)
+  bline <- data[!duplicated(data$RID),]
+  bline <- bline[,c("RID", "fulllewy", "fullcaa", "fulltdp43")]
+  frame <- merge(frame, bline, by="RID")
+  frame$AD <- 1
+  relpercentages <- data.frame("Lewy" = rep(100, nrow(frame)), 
+                               "CAA" = rep(29, nrow(frame)),  
+                               "TDP" = rep(52, nrow(frame)), 
+                               "AD" = rep(100, nrow(frame)))
+  cogstatus  <- data.frame(lapply(frame[,c("fulllewy", "fullcaa", "fulltdp43", "AD")], function(x) as.numeric(as.character(x))))
+  totalcognitivedecline <- cogstatus * relpercentages
+  colnames.append <- colnames(totalcognitivedecline)
+  colnames(totalcognitivedecline)<- paste(colnames.append, "_relative_AD_perc", sep="")
+  totalcognitivedecline$cum_perc_decline <- rowSums2(as.matrix(totalcognitivedecline))
+  releffects <- round((totalcognitivedecline[,c(1,2,3, 4)] / totalcognitivedecline[,5]) * 100, 2)
+  reldeclinenames<- paste(colnames.append, "_relative_perc_decline", sep="")
+  colnames(releffects) <- reldeclinenames
+  totalcognitivedecline <- cbind(totalcognitivedecline, releffects)
+  totalcognitivedecline$anti_tau_relative_perc <- totalcognitivedecline$AD_relative_perc / 2
+  totalcognitivedecline <- cbind(frame, totalcognitivedecline)
+  rel_rates <- (totalcognitivedecline[,reldeclinenames] / 100) * totalcognitivedecline[,"Rate_Decline"]
+  colnames(rel_rates) <- paste(colnames.append, "_relative_contribution_decline")
+  totalcognitivedecline <- cbind(totalcognitivedecline, rel_rates)
+  relratesmean <- unlist(Map(mean, rel_rates))
+  conf.low.rates <- unlist(Map(function(x) { mean(x) - 1.96* ((sd(x) / sqrt(length(x))))}, rel_rates))
+  conf.hi.rates <- unlist(Map(function(x) { mean(x) + 1.96* ((sd(x) / sqrt(length(x))))}, rel_rates))
+  relpercentagesmean <- unlist(Map(mean, totalcognitivedecline[,reldeclinenames]))
+  conf.low.perc <- unlist(Map(function(x) { mean(x) - 1.96* ((sd(x) / sqrt(length(x))))}, totalcognitivedecline[,reldeclinenames]))
+  conf.hi.perc <- unlist(Map(function(x) { mean(x) + 1.96* ((sd(x) / sqrt(length(x))))}, totalcognitivedecline[,reldeclinenames]))
+  rates.data <- data.frame("Path" = names(relratesmean),
+                           "Mean" = relratesmean,
+                           "Ci.low" = conf.low.rates,
+                           "Ci.high" = conf.hi.rates)
+  percentages.data <- data.frame("Path" = names(relpercentagesmean),
+                                 "Mean" = relpercentagesmean,
+                                 "Ci.low" = conf.low.perc,
+                                 "Ci.high" = conf.hi.perc)
+  return(list("Table" = totalcognitivedecline,
+              "Rates_Data" = rates.data,
+              "Percent_Data" = percentages.data))
+  
+}
+
+
+
+
