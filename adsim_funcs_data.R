@@ -13,7 +13,7 @@ library(lmerTest)
 library(splitstackshape)
 library(purrr)
 library(ggplot2)
-
+library(reshape2)
 `%notin%` <- Negate(`%in%`)
 
 
@@ -971,26 +971,44 @@ GetRelContributions <- function(model, data) {
   rel_rates <- (totalcognitivedecline[,reldeclinenames] / 100) * totalcognitivedecline[,"Rate_Decline"]
   colnames(rel_rates) <- paste(colnames.append, "_relative_contribution_decline")
   totalcognitivedecline <- cbind(totalcognitivedecline, rel_rates)
-  relratesmean <- unlist(Map(mean, rel_rates))
-  conf.low.rates <- unlist(Map(function(x) { mean(x) - 1.96* ((sd(x) / sqrt(length(x))))}, rel_rates))
-  conf.hi.rates <- unlist(Map(function(x) { mean(x) + 1.96* ((sd(x) / sqrt(length(x))))}, rel_rates))
-  relpercentagesmean <- unlist(Map(mean, totalcognitivedecline[,reldeclinenames]))
-  conf.low.perc <- unlist(Map(function(x) { mean(x) - 1.96* ((sd(x) / sqrt(length(x))))}, totalcognitivedecline[,reldeclinenames]))
-  conf.hi.perc <- unlist(Map(function(x) { mean(x) + 1.96* ((sd(x) / sqrt(length(x))))}, totalcognitivedecline[,reldeclinenames]))
-  rates.data <- data.frame("Path" = names(relratesmean),
-                           "Mean" = relratesmean,
-                           "Ci.low" = conf.low.rates,
-                           "Ci.high" = conf.hi.rates)
-  percentages.data <- data.frame("Path" = names(relpercentagesmean),
-                                 "Mean" = relpercentagesmean,
-                                 "Ci.low" = conf.low.perc,
-                                 "Ci.high" = conf.hi.perc)
+  relratesmean <- unlist(Map(function(x) {round(mean(x), 3)}, rel_rates))
+  sdperc <- unlist(Map(function(x) {round(sd(x), 3)}, totalcognitivedecline[,reldeclinenames]))
+  meanperc <- unlist(Map(function(x) {round(mean(x), 3)}, totalcognitivedecline[,reldeclinenames]))
+  num_subjects <- unlist(Map(function(x) {length(which(x == 1))}, totalcognitivedecline[,c("fulllewy", "fullcaa", "fulltdp43", "AD")]))
+  totalratedecline <- round(fixef(model)["new_time"], 3)
+  rates.data <- list("Path" = names(relratesmean),
+                           "Mean_Rate" = relratesmean,
+                           "SD_Perc" = sdperc,
+                           "Mean_Perc" = meanperc,
+                     "Num_Subjects" = num_subjects,
+                     "Total_Decline" = totalratedecline)
   return(list("Table" = totalcognitivedecline,
-              "Rates_Data" = rates.data,
-              "Percent_Data" = percentages.data))
+              "Rates_Data" = rates.data))
   
 }
 
 
+BuildNeuroCountPlot <- function(RelContr) {
+  trytable <- RelContr$Table[,c("fulllewy", "fullcaa", "fulltdp43", "AD")]
+  OnlyAD <- rep(0, nrow(trytable))
+  OnlyAD[which(trytable$fulllewy==0 & trytable$fullcaa==0 & trytable$fulltdp43==0)] <- 1
+  trytable <- model.matrix(AD ~ .^2, data=trytable)
+  print(colnames(trytable))
+  colnames(trytable) <- c("AD", "Lewy", "CAA", "TDP43", "Lewy & CAA", "Lewy & TDP43", "CAA & TDP43")
+  trytable <- as.data.frame(trytable)
+  trytable$`Only AD` <- OnlyAD
+  trytable
+  tryframe <- unlist(Map(function(x) {length(which(x==1))}, trytable))
+  tryframe <- data.frame("Group" = names(tryframe),
+                         "Counts" = unname(tryframe))
+  
+  tryframe$Group <- factor(tryframe$Group,                                    # Factor levels in decreasing order
+                           levels = tryframe$Group[order(tryframe$Counts, decreasing = TRUE)])
+  plotcolors <-
+    setNames( c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+              , c("AD", "Lewy", "CAA", "TDP43", "Lewy & CAA", "Lewy & TDP43", "CAA & TDP43", "Only AD"))
+  return(ggplot(tryframe, aes(y=Counts, x=Group, fill=Group)) + geom_bar(stat = "identity")+  scale_fill_manual(values = plotcolors) +
 
+    theme(axis.title.x=element_blank()))
+}
 

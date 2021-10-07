@@ -54,9 +54,9 @@ cdr_global["VISCODE"][which(cdr_global$VISCODE=="sc"),] <- "bl"
 #imaging
 # harmonized in harmonize_imaging_for_simulation
 
-imaging_simulation_data <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/harmed_freesurfer_imaging.csv")
-
-
+imaging_simulation_data <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/harmed_unharmed_freesurfer_imaging.csv")
+imaging_simulation_data$VISCODE.1 <- NULL
+imaging_simulation_data$NA..1 <-imaging_simulation_data$NA..2 <- imaging_simulation_data$NA. <- NULL
 
 #ADAS
 adas_scores_1   <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/ADASSCORES.csv")
@@ -101,6 +101,8 @@ csf.data$EXAMDATE <- as.POSIXct(csf.data$EXAMDATE)
 csf.data                 <- csf.data[order(csf.data$RID, csf.data$EXAMDATE, decreasing = FALSE), ]
 csf.data$ABETA <-           as.numeric(as.character(csf.data$ABETA))
 csf.data$PTAU <-           as.numeric(as.character(csf.data$PTAU))
+csf.data$ABETA_untransformed <- csf.data$ABETA
+csf.data$PTAU_untransformed <- csf.data$PTAU
 csf.data["ABETA"][which(csf.data$TRANSFORM == TRUE), ] <- (csf.data["ABETA"][which(csf.data$TRANSFORM == TRUE), ]*1.014) + 29.25
 csf.data["PTAU"][which(csf.data$TRANSFORM == TRUE), ] <- (csf.data["PTAU"][which(csf.data$TRANSFORM == TRUE), ]*.961) - .694
 amyloid.cutpoint <- (980 *1.014) + 29.25
@@ -145,7 +147,6 @@ adas_merge_demog <- merge(adas_merge_demog, adni_neuropsych, by=c("RID", "VISCOD
 adas_merge_demog <- merge(adas_merge_demog, csf.data, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog <- merge(adas_merge_demog, imaging_simulation_data, by=c("RID", "VISCODE"), all = TRUE)
 
-
 names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE.x'] <- 'EXAMDATE_adnimerge'
 names(adas_merge_demog)[names(adas_merge_demog) == "EXAMDATE.y"] <- "EXAMDATE_csf"
 adas_merge_demog <- merge(adas_merge_demog, neuropath.data, by="RID", all = TRUE)
@@ -153,7 +154,7 @@ adas_merge_demog <- merge(adas_merge_demog, non.ad.imputation, by="RID", all = T
 adas_merge_demog <- merge(adas_merge_demog, cdr_global, by=c("RID", "VISCODE"), all = TRUE)
 adas_merge_demog            <- merge(adas_merge_demog, av45, by=c("RID", "VISCODE"), all = TRUE)
 names(adas_merge_demog)[names(adas_merge_demog) == 'EXAMDATE'] <- 'EXAMDATE_pet'
-adas_merge_demog$AGE <- round(adas_merge_demog$AGE + (adas_merge_demog$M / 12), 1)
+adas_merge_demog$AGE <- round(adas_merge_demog$AGE.x + (adas_merge_demog$M.x / 12), 1)
 adas_merge_demog$EXAMDATE_adnimerge <- as.POSIXct(adas_merge_demog$EXAMDATE_adnimerge)
 adas_merge_demog$EXAMDATE_csf<- as.POSIXct(adas_merge_demog$EXAMDATE_csf)
 adas_merge_demog$EXAMDATE_pet<- as.POSIXct(adas_merge_demog$EXAMDATE_pet)
@@ -197,8 +198,8 @@ adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demo
 adas_merge_demog$fulllewy <- adas_merge_demog$fulltdp43 <- adas_merge_demog$fullcaa <- rep(NA, nrow(adas_merge_demog)) 
 baseline.var.list <- c("DX","AGE", "PTGENDER", "PTEDUCAT", 
                        "APOE4", "CDRSB", "MMSE", "mPACCtrailsB", "TOTAL11", "TOTAL13", 
-                       "ABETA", "TAU", "PTAU", "AmyPos","ptau_pos", "CDGLOBAL", "ADNI_MEM", "ADNI_EF")
-adas_merge_demog$DX <- as.character(adas_merge_demog$DX)
+                       "ABETA", "PTAU", "TAU","ABETA_untransformed", "PTAU_untransformed", "AmyPos","ptau_pos", "CDGLOBAL", "ADNI_MEM", "ADNI_EF")
+adas_merge_demog$DX <- as.character(adas_merge_demog$DX.x)
 adas_merge_demog <- adas_merge_demog[order(adas_merge_demog$RID, adas_merge_demog$M_vis, decreasing = FALSE), ]
 adas_merge_demog$RID <- factor(as.character(adas_merge_demog$RID))
 
@@ -211,7 +212,8 @@ baseline.var.list <- paste(baseline.var.list, "_bl", sep="")
 
 adas_merge_demog$image_remerging <- 1:nrow(adas_merge_demog)
 image_columns <- grep("_harmonized", colnames(adas_merge_demog), value = TRUE)
-image_data_for_adj <- adas_merge_demog[,c("RID", "DX_bl", "AGE_bl", "PTGENDER", "AmyPos_bl", image_columns, "image_remerging")]
+colnames(adas_merge_demog)
+image_data_for_adj <- adas_merge_demog[,c("RID", "DX_bl", "AGE_bl", "PTGENDER.x", "AmyPos_bl", image_columns, "image_remerging")]
 image_data_for_adj <- na.omit(image_data_for_adj)
 image_data_for_adj$Baseline <- !duplicated(image_data_for_adj$RID)
 image_data_for_adj["x1"] <- 5
@@ -220,7 +222,7 @@ image_columns <- image_columns[!image_columns=="ST10CV_harmonized"]
 
 
 for(i in image_columns) {
-  correction_formula <- paste(i, "~ AGE_bl + PTGENDER + ST10CV_harmonized", sep=" ")
+  correction_formula <- paste(i, "~ AGE_bl + PTGENDER.x + ST10CV_harmonized", sep=" ")
   corrected_name <- paste(i, "icv_adj", sep="_")
   corrected_feature  <- feature.correction(training.data = icv.training,
                                            data = image_data_for_adj,
@@ -233,7 +235,6 @@ for(i in image_columns) {
 image_columns.adj <- grep("_harmonized_icv_adj", colnames(image_data_for_adj), value = TRUE)
 imaging_to_remerge <- image_data_for_adj[,c(image_columns.adj, "image_remerging")]
 adas_merge_demog <- merge(adas_merge_demog, imaging_to_remerge, by="image_remerging", all.x = TRUE)
-
 
 if(FALSE) {
 
@@ -250,7 +251,7 @@ if(FALSE) {
 
 # All neuropathology data for checking effect size of neurpats on outcome 
 
-write.csv(adas_merge_demog, "/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/final_merged_data_4sim.csv")
+write.csv(adas_merge_demog, "/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/final_merged_data_4sim_remerged.csv")
 
 
 aut.rows <- which(complete.cases(adas_merge_demog[,c("NPBRAAK", "NPNEUR", "NPTDPB", "NPTDPC", "NPTDPD", "NPTDPE",
