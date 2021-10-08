@@ -1,18 +1,19 @@
-library(nlme)
-library(sjPlot)
-library(pbkrtest)
+
+
+
 #read in early ad data
-earlyadcohorts       <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts.rds")
-earlyadcohorts.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_tplus.rds")
-earlyadcohorts.neuroenriched <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_neuroenriched.rds")
+earlyadcohorts                     <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts.rds")
+earlyadcohorts.tplus               <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_tplus.rds")
+earlyadcohorts.neuroenriched       <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_neuroenriched.rds")
 earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadcohorts_neuroenriched_tplus.rds")
+
 
 
 #keeping subjects with 3 or more time points
 #update descriptive statistics and a few plots in powerpoint as this will remove a few subjects
-earlyadcohorts <- Keep1YearorMore(earlyadcohorts)
-earlyadcohorts.tplus <- Keep1YearorMore(earlyadcohorts.tplus)
-earlyadcohorts.neuroenriched <- Keep1YearorMore(earlyadcohorts.neuroenriched)
+earlyadcohorts                     <- Keep1YearorMore(earlyadcohorts)
+earlyadcohorts.tplus               <- Keep1YearorMore(earlyadcohorts.tplus)
+earlyadcohorts.neuroenriched       <- Keep1YearorMore(earlyadcohorts.neuroenriched)
 earlyadcohorts.neuroenriched.tplus <- Keep1YearorMore(earlyadcohorts.neuroenriched.tplus)
 
 
@@ -1140,8 +1141,6 @@ saveRDS(earlyad.adas13.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinica
 saveRDS(earlyad.hipp.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.hipp_4sim_rs.rds")
 saveRDS(earlyad.mpacc.modeling.list.rs, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.mpacc_4sim_rs.rds")
 
-
-
 }
 
 ######## With new data (3 or more time points) and Tau specific decline
@@ -1158,7 +1157,6 @@ earlyad.adas13.modeling.list <- list("sim.data" = list("unenriched"=long.earlyad
                                      "yaxislab_dpm" = replicate(3, "ADAS13", simplify = FALSE),
                                      "return_dpm" = replicate(3, FALSE, simplify = FALSE))
 
-summary(simulation.model.earlyad.neuroenriched.tplus.mpacc.rs)
 
 earlyad.adas13.modeling.list.rs <- list("sim.data" = list("unenriched"=long.earlyad.adas13_with_treatment,
                                                           "taupos"=long.earlyad.tplus.adas13_with_treatment,
