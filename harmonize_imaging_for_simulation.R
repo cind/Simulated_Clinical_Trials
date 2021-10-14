@@ -124,9 +124,6 @@ harmed.imaging$LeftMeta     <- matrixStats::rowSums2(as.matrix(harmed.imaging[,l
 harmed.imaging$RightMeta    <- matrixStats::rowSums2(as.matrix(harmed.imaging[,right.meta]))
 total.imaging <- cbind(imaging_data_set, harmed.imaging[,3:ncol(harmed.imaging)])
 
+write.csv(total.imaging,"/Users/adamgabriellang/Desktop/clinical_trial_sim/data_processed/harmed_and_unharmed_freesurfer_imaging.csv")
 
-if(FALSE) {
-write.csv(total.imaging,"/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/harmed_unharmed_freesurfer_imaging.csv")
-}
   
-

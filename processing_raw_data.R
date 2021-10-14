@@ -268,9 +268,8 @@ all_outcomes_demog_merged   <- merge(all_outcomes_demog_merged, imaging_to_remer
 
 
 # WRITE OUTPUT OF MERGED FILE
-if(writecsv) {
-write.csv(all_outcomes_demog_merged, "/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/final_merged_data_4sim_remerged.csv")
-}
+write.csv(all_outcomes_demog_merged, "/Users/adamgabriellang/Desktop/clinical_trial_sim/data_processed/all_outcomes_merged_data.csv")
+
 
 
 

@@ -5,7 +5,7 @@ imputed.rows <- which(complete.cases(full.merged.data[,c("TDP43", "LEWY", "CAA")
 keeps <- unique(union(aut.rows, imputed.rows))
 all.neuropat <- full.merged.data[keeps,]
 all.neuropat <- SetNeuroData(all.neuropat)
-
+#
 for(i in 1:nrow(all.neuropat)) {
   if(!is.na(all.neuropat["Amy_pos_path"][i,]) & all.neuropat["Amy_pos_path"][i,]==1) {
     all.neuropat["AmyPos_full"][i,] <- 1
