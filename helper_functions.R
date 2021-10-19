@@ -572,6 +572,8 @@ BuildSimulationModel <- function(list, formula.model, data, treatment.effect, es
   fixd["treat1"]   <- 0
   if(treatment.effect =="controlled") {
     fixd["new_time:treat1"] <- ((adjusted.decline * .5) * -1)
+  } else if(is.numeric(treatment.effect)) {
+    fixd["new_time:treat1"] <- ((treatment.effect * .5) * -1)
   } else {
     fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
   }
@@ -592,7 +594,6 @@ BuildSimulationModel <- function(list, formula.model, data, treatment.effect, es
   return(constr.lme)
 }
 
-
 BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effect) {
   model            <- list
   #adjusted.decline <- list[[2]]
@@ -600,12 +601,21 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   fixd["treat1"]   <- 0
   if(treatment.effect =="controlled") {
     fixd["new_time:treat1"] <- ((adjusted.decline * .5) * -1)
+  }  else if(is.numeric(treatment.effect)) {
+    fixd["new_time:treat1"] <- ((treatment.effect * .5) * -1)
   } else {
     fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
   }
-  fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
-  sigma.mod        <- summary(model)$sigma
+  print(fixd)
+  if(length(unique(data$CDGLOBAL_bl)) == 1) {
+  fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl",  "new_time:treat1")]
+  } else {
+     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
+   }
+  sigma.mod        <- summary(model)$sigma - 2
   varcor.mod       <- VarCorr(model)
+  print(sigma.mod)
+  print(varcor.mod)
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
   return(constr.lme)
 }
@@ -974,4 +984,64 @@ BuildNeuroCountPlot <- function(RelContr) {
            
            theme(axis.title.x=element_blank()))
 }
+
+
+BuildSimulationDataTable <- function(list) {
+  simstats <- list$fullstats
+  simstats <- simstats[,c("nlevels", "successes", "mean", "lower", "upper", "Group")]
+  colnames(simstats) <- c("SampleSize", "Successes", "Mean", "Lower (95% CI)", "Upper (95% CI)", "Group")
+  simstatslist <- split(simstats, simstats$Group)
+  return(simstatslist)
+}
+
+
+
+
+
+DPMPlots <- function(list, ylab, ylim.low, ylim.high) {
+  return.list <- list()
+  for(i in 1:length(list)) { 
+    mod <- list[[i]]
+    get.data <-  get_model_data(model = mod, terms = "new_time", type = "int")
+    get.data$Treatment <- get.data$group
+    plot.dpm <- ggplot(get.data, 
+                       aes(x=x, y=predicted, fill=Treatment)) + geom_point() + geom_line() + geom_ribbon(aes(ymin=conf.low, ymax=conf.high), stat = "identity",  alpha=.5) + xlab("Time From Baseline (Years)") +ylab(ylab) + ylim(ylim.low, ylim.high)
+    return.list[[i]] <- plot.dpm
+  }
+  names(return.list) <- names(list)
+  return(return.list)
+}
+
+
+
+
+ManualSimulation <- function(model, treatment_model, data) {
+  i <- 100 
+  model_data          <-  getData(model.earlyad.adas13.rs)
+  model_data_baseline <-  model_data[!duplicated(model_data$RID), ]
+  mod_ext2            <-  simr::extend(model.earlyad.adas13.rs, along="RID", n=2000)
+  data_extended       <-  simr::getData(mod_ext2)
+  levels_extended     <-  levels(data_extended$RID)
+  sample.levels       <-  sample(levels_extended, size = i * 2)
+  data_sample         <-  subset(data_extended, RID %in% sample.levels)
+  sample_baseline     <- data_sample[!duplicated(data_sample$RID), ]
+  trydata             <- RandomizeTreatment2(sample_baseline, data_sample)
+  trysimulate_model   <- simulate(model.earlyad.adas13.rs, newdata= trydata, allow.new.levels=TRUE, use.u=TRUE)
+  trysimulate_mode_treatment_effect <- simulate(simulation.model.earlyad.adas13.rs, newdata= trydata, allow.new.levels=TRUE, use.u=TRUE)
+  anova(model.earlyad.adas13.rs, simulation.model.earlyad.adas13.rs)
+}
+
+
+
+get_model_data(simulation.model.earlyad.adas13.rs, type="pred",)
+StratifyContinuous <- function(longdata, stratcols) {
+  bline <- longdata[!duplicated(longdata$RID),]
+  bline <- StratifyContVar(bline, stratcols = stratcols)
+  post.strat <- paste(stratcols, "_strat", sep="")
+  bline <- bline[,c("RID", post.strat)]
+  longdata <- merge(longdata, bline, by="RID", all.x=TRUE)
+  return(longdata)
+}
+
+
 
