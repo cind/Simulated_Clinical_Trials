@@ -621,7 +621,6 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
 }
 
 
-
 BuildSignificanceTable <- function(model) {
   list.names <- list("AGE_bl" = "Age (Baseline)", 
                      "PTGENDER_blMale" = "Gender (Male)",
@@ -692,8 +691,11 @@ RandomizeTreatment2 <- function(data, longdata) {
   stratifydf <- data
   stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
                                      stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_full_bl)
-  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
-  treatmentrids       <- unique(stratifieddata$RID)
+  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = TRUE)
+  names(stratifieddata) <- c("Treatment", "Placebo")
+  get.props           <- Map(CalcProportionPos, stratifieddata)
+  treatmentrids       <- stratifieddata[[1]]
+  treatmentrids       <- unique(treatmentrids$RID)
   controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
   treatmentrows       <- subset(longdata, RID %in% treatmentrids)
   treatmentrows$treat <- rep(1, nrow(treatmentrows))
@@ -701,14 +703,31 @@ RandomizeTreatment2 <- function(data, longdata) {
   controlrows$treat   <- rep(0, nrow(controlrows))
   returndata          <- rbind(treatmentrows, controlrows)
   returndata$treat    <- factor(returndata$treat)
-  return(returndata)
+  return(list("data"= returndata, "props" = get.props))
 }
+
+
+CalcProportionPos <- function(data, keepcols = c("fullcaa", "fulllewy", "fulltdp43", "PTGENDER", "AGE_bl_strat",
+                                                 "PTEDUCAT_bl_strat","MMSE_bl_strat", "CDGLOBAL_bl", "TauPos_full_bl")) {
+  data <- as.data.frame(data)
+  data <- data[,keepcols]
+  prop <- Map(function(x) {table(x)/sum(table(x))}, data)
+  prop <- lapply(prop, `[`, 1)
+  prop <- unlist(prop)
+  return(prop)
+}
+
+
+
+
+
+
 
 
 RandomizeTreatment2NoPath <- function(data, stratcolumns, longdata) {
   stratifydf          <- data[,c("RID", stratcolumns)]
   stratifydf$stratvar <- interaction(stratifydf$PTGENDER, stratifydf$AGE_bl_strat)
-  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = FALSE)
+  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = TRUE)
   treatmentrids       <- unique(stratifieddata$RID)
   controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
   treatmentrows       <- subset(longdata, RID %in% treatmentrids)
@@ -734,7 +753,7 @@ StratifyContVar <- function(data, stratcols) {
 
 
 MapLmer <- function(newdata, formula.model) {
-  lme.fit <- lmer(as.formula(formula.model), data = newdata)
+  lme.fit <- lmer(as.formula(formula.model), data = newdata, REML=TRUE)
   return(lme.fit)
 }
 
@@ -1013,35 +1032,119 @@ DPMPlots <- function(list, ylab, ylim.low, ylim.high) {
 }
 
 
+GetConfInt <- function(data_succ) {
+  names_data <- colnames(data_succ)
+  returnframe <- data.frame()
+  for(i in 1:ncol(data_succ)) {
+    x <- unname(unlist(data_succ[i]))
+    succ <- length(which(x == "y"))
+    total <- length(x)
+    binom <- binom.test(succ, total)
+    confinter<-(stats::binom.test(succ, total))
+    confinter <- as.numeric(confinter$conf.int)
+    returnframe <- rbind(returnframe, confinter)
+  }
+  colnames(returnframe) <- c("ci.low", "ci.high")
+  rownames(returnframe) <- names_data
+  return(returnframe)
+}
 
-
-ManualSimulation <- function(model, treatment_model, data) {
-  i <- 100 
-  model_data          <-  getData(model.earlyad.adas13.rs)
-  model_data_baseline <-  model_data[!duplicated(model_data$RID), ]
-  mod_ext2            <-  simr::extend(model.earlyad.adas13.rs, along="RID", n=2000)
-  data_extended       <-  simr::getData(mod_ext2)
-  levels_extended     <-  levels(data_extended$RID)
-  sample.levels       <-  sample(levels_extended, size = i * 2)
-  data_sample         <-  subset(data_extended, RID %in% sample.levels)
-  sample_baseline     <- data_sample[!duplicated(data_sample$RID), ]
-  trydata             <- RandomizeTreatment2(sample_baseline, data_sample)
-  trysimulate_model   <- simulate(model.earlyad.adas13.rs, newdata= trydata, allow.new.levels=TRUE, use.u=TRUE)
-  trysimulate_mode_treatment_effect <- simulate(simulation.model.earlyad.adas13.rs, newdata= trydata, allow.new.levels=TRUE, use.u=TRUE)
-  anova(model.earlyad.adas13.rs, simulation.model.earlyad.adas13.rs)
+ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim) {
+  cat("Beginning simulation")
+  cat("\n")
+  cat("\n")
+  init_significance_list              <-  list()
+  init_props_list_treatment           <-  list()
+  init_props_list_placebo             <-  list()
+  smallmodel_data           <-  getData(smallmodel)
+  smallmodel_data_baseline  <-  smallmodel_data[!duplicated(smallmodel_data$RID), ]
+  levels_data               <- nrow(smallmodel_data_baseline)
+  if(max(sample_sizes) < levels_data) {
+    smallmodel_extended       <-  simr::extend(smallmodel, along="RID", n = levels_data * 3)
+  } else {
+  smallmodel_extended       <-  simr::extend(smallmodel, along="RID", n = (max(sample_sizes) * 3))
+  }
+  data_extended             <-  simr::getData(smallmodel_extended)
+  levels_extended           <-  levels(data_extended$RID)
+  sample_size_init          <-  list()
+  for(i in sample_sizes) {
+   sample_size_name         <- paste("ss_", i, sep="")
+   cat("Sample Size: ", i, sep="")
+   cat("\n")
+   cat("\n")
+   init_iter_list_pval                <- list()
+   init_iter_list_prop_treatment      <- list()
+   init_iter_list_prop_placebo        <- list()
+   for(j in 1:nsim) {    
+    cat("\r", j, " out of ", nsim, " complete", sep = "")   
+    sample.levels            <-  sample(levels_extended, size = i * 2)
+    data_sample              <-  subset(data_extended, RID %in% sample.levels)
+    sample_baseline          <-  data_sample[!duplicated(data_sample$RID), ]
+    treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
+    prop                     <-  treatment.out[["props"]]
+    data_sample_treated      <-  treatment.out[["data"]]
+    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel,
+                                               "small_model_reponse"  = simulate_response_smallmodel)
+    colnames(refit_data_outcomes) <- c("large_model_response", 
+                                       "small_model_response")
+    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated)
+    refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
+    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
+    iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small)
+    pval                          <- getKR(iter_kr_ftest, "p.value")
+    init_iter_list_pval[[j]]                     <- pval
+    init_iter_list_prop_treatment[[j]]           <- prop[["Treatment"]]
+    init_iter_list_prop_placebo[[j]]             <- prop[["Placebo"]]
+    
+   }
+   cat("\n")
+   cat("\n")
+   sample_size_init[[sample_size_name]] <- init_iter_list_pval
+   init_props_list_treatment[[sample_size_name]]  <- init_iter_list_prop_treatment
+   init_props_list_placebo[[sample_size_name]]    <- init_iter_list_prop_placebo
+  }
+  init_props_list_treatment <- Map(function(x){do.call(bind_rows, x)}, init_props_list_treatment)
+  init_props_list_placebo <- Map(function(x){do.call(bind_rows, x)}, init_props_list_placebo)
+  sample_size_init <- data.frame(sapply(sample_size_init,c))
+  sample_size_init[sample_size_init <= 0.05]      <- "y"
+  sample_size_init[sample_size_init != "y"]       <- "n"
+  conf.inter <- GetConfInt(sample_size_init)
+  return(list("Successes" = sample_size_init, 
+              "ci"        = conf.inter, 
+              "Treatment_Proportions" = init_props_list_treatment, 
+              "Placebo_Proportions"   = init_props_list_placebo))
 }
 
 
+trymanual <- ManualSimulation(formula_largemodel = formula.earlyad.hipp.simulation.rs,
+                              largemodel         = simulation.model.earlyad.hipp.rs,
+                              formula_smallmodel = formula.earlyad.hipp.rs,
+                              smallmodel         = model.earlyad.hipp.rs,
+                              sample_sizes       = c(10, 20, 30),
+                              nsim = 5)
 
-get_model_data(simulation.model.earlyad.adas13.rs, type="pred",)
+
+
 StratifyContinuous <- function(longdata, stratcols) {
-  bline <- longdata[!duplicated(longdata$RID),]
-  bline <- StratifyContVar(bline, stratcols = stratcols)
+  bline      <- longdata[!duplicated(longdata$RID),]
+  bline      <- StratifyContVar(bline, stratcols = stratcols)
   post.strat <- paste(stratcols, "_strat", sep="")
-  bline <- bline[,c("RID", post.strat)]
-  longdata <- merge(longdata, bline, by="RID", all.x=TRUE)
+  bline      <- bline[,c("RID", post.strat)]
+  longdata   <- merge(longdata, bline, by="RID", all.x=TRUE)
   return(longdata)
 }
 
 
+parallel::detectCores()
+n.cores <- 10
+my.cluster <- parallel::makeCluster(n.cores, type="PSOCK")
+print(my.cluster)
+doParallel::registerDoParallel(cl = my.cluster)
+foreach::getDoParRegistered()
+foreach::getDoParWorkers()
+library(doParallel)
+parallel::stopCluster(cl = my.cluster)
 
+?foreach()
