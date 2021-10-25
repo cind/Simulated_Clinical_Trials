@@ -1060,7 +1060,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   smallmodel_data_baseline  <-  smallmodel_data[!duplicated(smallmodel_data$RID), ]
   levels_data               <- nrow(smallmodel_data_baseline)
   if(max(sample_sizes) < levels_data) {
-    smallmodel_extended       <-  simr::extend(smallmodel, along="RID", n = levels_data * 3)
+    smallmodel_extended     <-  simr::extend(smallmodel, along="RID", n = levels_data * 3)
   } else {
   smallmodel_extended       <-  simr::extend(smallmodel, along="RID", n = (max(sample_sizes) * 3))
   }
@@ -1118,6 +1118,26 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 trymanual <- ManualSimulation(formula_largemodel = formula.earlyad.hipp.simulation.rs,
                               largemodel         = simulation.model.earlyad.hipp.rs,
                               formula_smallmodel = formula.earlyad.hipp.rs,
@@ -1137,14 +1157,3 @@ StratifyContinuous <- function(longdata, stratcols) {
 }
 
 
-parallel::detectCores()
-n.cores <- 10
-my.cluster <- parallel::makeCluster(n.cores, type="PSOCK")
-print(my.cluster)
-doParallel::registerDoParallel(cl = my.cluster)
-foreach::getDoParRegistered()
-foreach::getDoParWorkers()
-library(doParallel)
-parallel::stopCluster(cl = my.cluster)
-
-?foreach()
