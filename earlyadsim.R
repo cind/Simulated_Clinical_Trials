@@ -16,7 +16,13 @@ earlyadcohorts.neuroenriched.tplus <- Keep1YearorMore(earlyadcohorts.neuroenrich
 
 ######################## ADAS13 ######################## 
 cs.earlyad.adas13     <- earlyadcohorts$cs$ADAS13
-long.earlyad.adas13   <-  earlyadcohorts$long$ADAS13
+long.earlyad.adas13   <-  earlyadcohorts$cs$ADAS13
+
+All.pair.ttests(list(cs.earlyad.adas13, cs.earlyad.tplus.adas13, cs.earlyad.neuroenriched.tplus.adas13), "AGE_bl")
+All.pair.ttests(list(cs.earlyad.adas13, cs.earlyad.tplus.adas13, cs.earlyad.neuroenriched.tplus.adas13), "PTEDUCAT_bl")
+All.pair.ttests(list(cs.earlyad.adas13, cs.earlyad.tplus.adas13, cs.earlyad.neuroenriched.tplus.adas13), "MMSE_bl")
+All.pair.ttests(list(cs.earlyad.adas13, cs.earlyad.tplus.adas13, cs.earlyad.neuroenriched.tplus.adas13), "TOTAL13_bl")
+All.pair.ttests(list(cs.earlyad.adas13, cs.earlyad.tplus.adas13, cs.earlyad.neuroenriched.tplus.adas13), "mPACCtrailsB_bl")
 
 
 #Tau+
@@ -27,11 +33,9 @@ long.earlyad.tplus.adas13  <-  earlyadcohorts.tplus$long$ADAS13
 cs.earlyad.neuroenriched.adas13    <- earlyadcohorts.neuroenriched$cs$ADAS13
 long.earlyad.neuroenriched.adas13  <-  earlyadcohorts.neuroenriched$long$ADAS13
 
-
 # Neuroenriched Tau+
 cs.earlyad.neuroenriched.tplus.adas13    <- earlyadcohorts.neuroenriched.tplus$cs$ADAS13
 long.earlyad.neuroenriched.tplus.adas13  <-  earlyadcohorts.neuroenriched.tplus$long$ADAS13
-
 
 ######################### HIPPOCAMPUS ######################## 
 #LH and RH dataframes are identical and have both left/right hippocampus regions (just use LH)
@@ -97,7 +101,7 @@ long.earlyad.neuroenriched.tplus.mpacc  <-  earlyadcohorts.neuroenriched.tplus$l
 
 
 
-
+if(FALSE) {
 #Descriptive table
 ######################## ADAS13 ########################
 earlyad.adas13.desc <- cs.earlyad.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
@@ -324,7 +328,7 @@ colnames(earlyad.neuroenriched.tplus.mpacc.desc) <- c("Diagnosis", "Age (Baselin
 earlyad.neuroenriched.tplus.mpacc.desc <- table1(earlyad.neuroenriched.tplus.mpacc.desc, splitby = ~ Diagnosis)
 earlyad.neuroenriched.tplus.mpacc.desc <- earlyad.neuroenriched.tplus.mpacc.desc$Table1
 earlyad.neuroenriched.tplus.mpacc.desc <- earlyad.neuroenriched.tplus.mpacc.desc[c(1, 6:9, 11:nrow(earlyad.neuroenriched.tplus.mpacc.desc)),]
-
+}
 
 
 
@@ -1267,41 +1271,59 @@ if(FALSE) {
                           "largemodel" = simulation.model.earlyad.adas13.rs , 
                           "formula_smallmodel" = formula.earlyad.adas13 , 
                           "smallmodel" = model.earlyad.adas13.rs , 
-                          "sample_sizes" = seq(100, 300, by=100), 
-                          "nsim" =100),
+                          "sample_sizes" = seq(100, 500, by=50), 
+                          "nsim" = 1000),
                "hipp" = list("formula_largemodel" = formula.earlyad.hipp.simulation.rs , 
                              "largemodel" = simulation.model.earlyad.hipp.rs , 
                              "formula_smallmodel" = formula.earlyad.hipp, 
                              "smallmodel" = model.earlyad.hipp.rs , 
-                             "sample_sizes" = seq(100, 200, by=50), 
-                             "nsim" = 100 ),
+                             "sample_sizes" = seq(20, 500, by=20), 
+                             "nsim" = 1000 ),
                "mpacc" = list("formula_largemodel" = formula.earlyad.mpacc.simulation.rs , 
                               "largemodel" = simulation.model.earlyad.mpacc.rs , 
                               "formula_smallmodel" = formula.earlyad.mpacc , 
                               "smallmodel" = model.earlyad.mpacc.rs , 
-                              "sample_sizes" = seq(100, 500, by=50), 
-                              "nsim" = 100),
+                              "sample_sizes" = seq(20, 500, by=20), 
+                              "nsim" = 1000),
                "adas13_tau+" = list("formula_largemodel" = formula.earlyad.adas13.simulation.rs , 
                                "largemodel" = simulation.model.earlyad.tplus.adas13.rs , 
                                "formula_smallmodel" = formula.earlyad.adas13 , 
                                "smallmodel" = model.earlyad.tplus.adas13.rs , 
-                               "sample_sizes" = seq(100, 200, by=50), 
-                               "nsim" = 100),
+                               "sample_sizes" = seq(100, 500, by=50), 
+                               "nsim" = 1000),
                "hipp_tau+" = list("formula_largemodel" = formula.earlyad.hipp.simulation.rs , 
                                     "largemodel" = simulation.model.earlyad.tplus.hipp.rs , 
                                     "formula_smallmodel" = formula.earlyad.hipp , 
                                     "smallmodel" = model.earlyad.tplus.hipp.rs , 
-                                    "sample_sizes" = seq(100, 300, by=50), 
-                                    "nsim" = 100),
+                                    "sample_sizes" = seq(20, 500, by=20), 
+                                    "nsim" = 1000),
                "mpacc_tau+" = list("formula_largemodel" = formula.earlyad.mpacc.simulation.rs , 
                                     "largemodel" = simulation.model.earlyad.tplus.mpacc.rs , 
                                     "formula_smallmodel" = formula.earlyad.mpacc , 
                                     "smallmodel" = model.earlyad.tplus.mpacc.rs , 
-                                    "sample_sizes" = seq(100, 400, by=100), 
+                                    "sample_sizes" = seq(20, 500, by=20), 
+                                    "nsim" = 1000),
+               "adas13_nocopath_t+" = list("formula_largemodel" = formula.earlyad.adas13.simulation.rs , 
+                                    "largemodel" = simulation.model.earlyad.neuroenriched.tplus.adas13.rs , 
+                                    "formula_smallmodel" = formula.earlyad.adas13 , 
+                                    "smallmodel" = model.earlyad.neuroenriched.tplus.adas13.rs , 
+                                    "sample_sizes" = seq(100, 500, by=50), 
+                                    "nsim" = 1000),
+               "hipp_nocopath_t+" = list("formula_largemodel" = formula.earlyad.hipp.simulation.rs , 
+                                    "largemodel" = simulation.model.earlyad.neuroenriched.tplus.hipp.rs , 
+                                    "formula_smallmodel" = formula.earlyad.hipp , 
+                                    "smallmodel" = model.earlyad.neuroenriched.tplus.hipp.rs , 
+                                    "sample_sizes" = seq(20, 500, by=20), 
+                                    "nsim" = 1000),
+               "mpacc_nocopath_t+" = list("formula_largemodel" = formula.earlyad.mpacc.simulation.rs , 
+                                    "largemodel" = simulation.model.earlyad.neuroenriched.tplus.mpacc.rs , 
+                                    "formula_smallmodel" = formula.earlyad.mpacc , 
+                                    "smallmodel" = model.earlyad.neuroenriched.tplus.mpacc.rs , 
+                                    "sample_sizes" = seq(20, 500, by=20), 
                                     "nsim" = 1000)), "/Users/adamgabriellang/Desktop/clinical_trial_sim/listsformanualsim.rds")
   
-  
-  #random intercept
+
+    #random intercept
   saveRDS(earlyad.adas13.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.adas13_4sim.rds")
   saveRDS(earlyad.hipp.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.hipp_4sim.rds")
   saveRDS(earlyad.mpacc.modeling.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyad.mpacc_4sim.rds")

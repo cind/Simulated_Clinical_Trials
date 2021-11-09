@@ -18,6 +18,9 @@ library(ggplot2)
 library(reshape2)
 library(sjPlot)
 library(pbkrtest)
+library(foreach)
+library(parallel)
+library(doParallel)
 
 `%notin%` <- Negate(`%in%`)
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
@@ -687,7 +690,7 @@ ZscoreAdj <- function(data, col_names, control.data) {
 }
 
 
-RandomizeTreatment2 <- function(data, longdata) {
+RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
   stratifydf <- data
   stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
                                      stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_full_bl)
@@ -703,8 +706,13 @@ RandomizeTreatment2 <- function(data, longdata) {
   controlrows$treat   <- rep(0, nrow(controlrows))
   returndata          <- rbind(treatmentrows, controlrows)
   returndata$treat    <- factor(returndata$treat)
+  if(!is.null(no.prop)) {
+    return(returndata)
+  } else {
   return(list("data"= returndata, "props" = get.props))
+  }
 }
+
 
 
 CalcProportionPos <- function(data, keepcols = c("fullcaa", "fulllewy", "fulltdp43", "PTGENDER", "AGE_bl_strat",
@@ -753,6 +761,7 @@ StratifyContVar <- function(data, stratcols) {
 
 
 MapLmer <- function(newdata, formula.model) {
+  newdata <- newdata
   lme.fit <- lmer(as.formula(formula.model), data = newdata, REML=TRUE)
   return(lme.fit)
 }
@@ -1014,9 +1023,6 @@ BuildSimulationDataTable <- function(list) {
 }
 
 
-
-
-
 DPMPlots <- function(list, ylab, ylim.low, ylim.high) {
   return.list <- list()
   for(i in 1:length(list)) { 
@@ -1033,26 +1039,153 @@ DPMPlots <- function(list, ylab, ylim.low, ylim.high) {
 
 
 GetConfInt <- function(data_succ) {
-  names_data <- colnames(data_succ)
+  names_data  <- colnames(data_succ)
   returnframe <- data.frame()
   for(i in 1:ncol(data_succ)) {
-    x <- unname(unlist(data_succ[i]))
-    succ <- length(which(x == "y"))
-    total <- length(x)
-    binom <- binom.test(succ, total)
-    confinter<-(stats::binom.test(succ, total))
+    x         <- unname(unlist(data_succ[i]))
+    succ      <- length(which(x == "y"))
+    total     <- length(x)
+    mean      <- succ / total
+    binom     <- binom.test(succ, total)
+    confinter <-(stats::binom.test(succ, total))
     confinter <- as.numeric(confinter$conf.int)
-    returnframe <- rbind(returnframe, confinter)
+    row.val   <- c(mean, confinter)
+    returnframe <- rbind(returnframe, row.val)
   }
-  colnames(returnframe) <- c("ci.low", "ci.high")
+  colnames(returnframe) <- c("mean", "ci.low", "ci.high")
   rownames(returnframe) <- names_data
   return(returnframe)
 }
 
+
+CombineOutcomes <- function(insidelist) {
+  pvals      <- which(names(insidelist) == "pval")
+  treatments <- which(names(insidelist) == "Treatment")
+  placebs    <- which(names(insidelist) == "Placebo")
+  vals       <- insidelist[pvals]
+  treatments <- insidelist[treatments]
+  placebs    <- insidelist[placebs]
+  treatments <- do.call(cbind, treatments)
+  placebs    <- do.call(cbind, placebs)
+  vals       <- unlist(vals)
+  return(list("Treatment" = treatments,
+              "Placebo" = placebs,
+              "pval" = vals))
+}
+
+
+CalcSuccesses <- function(list, rows) {
+  init_pval_data <- data.frame(matrix(nrow = rows))
+  for(i in 1:length(list)) {
+    sublist <- list[[i]]
+    init_pval_data <- cbind(init_pval_data, sublist$pval)
+  }
+  init_pval_data[,1] <- NULL
+  colnames(init_pval_data) <- names(list)
+  init_pval_data[init_pval_data <= 0.05]      <- "y"
+  init_pval_data[init_pval_data != "y"]       <- "n"
+  return(init_pval_data)
+}
+
+
+StratifyContinuous <- function(longdata, stratcols) {
+  bline      <- longdata[!duplicated(longdata$RID),]
+  bline      <- StratifyContVar(bline, stratcols = stratcols)
+  post.strat <- paste(stratcols, "_strat", sep="")
+  bline      <- bline[,c("RID", post.strat)]
+  longdata   <- merge(longdata, bline, by="RID", all.x=TRUE)
+  return(longdata)
+}
+
+
+BalanceDiagnostics <- function(outer) {
+  prop_test_frame <- Map(PropTestIter, outer)
+  return(prop_test_frame)
+}
+
+PropTestIter <- function(outer_sublist) {
+  tr <- outer_sublist$Treatment
+  pl <- outer_sublist$Placebo
+  ss <- outer_sublist$sample_size
+  rnames <- rownames(tr)
+  init_df <- data.frame(matrix(nrow = dim(tr)[1]))  
+  if(!all(dim(tr) == dim(pl))) {
+    stop("Dataframe dimensions are not identical")
+  }
+  for(i in 1:ncol(tr)) {
+    col_tr    <- tr[,i]
+    col_pl    <- pl[,i]
+    col.tests <- c()
+    for(j in 1:nrow(tr)) {
+      cell_tr <- col_tr[[j]]
+      cell_pl <- col_pl[[j]]
+      test    <- prop.test(c(round(cell_tr*ss), 
+                             round(cell_pl*ss)), 
+                             c(ss, ss))$p.value
+      col.tests <- append(col.tests, test)
+    }
+    init_df <- cbind(init_df, col.tests)
+  }
+  init_df[,1] <- NULL
+  rownames(init_df) <- rnames
+  return(init_df)
+}
+
+
+TrPlMeanCI <- function(outer_list) {
+  nsim       <- ncol(outer_list$Treatment)
+  rnames_tr  <- rownames(outer_list$Treatment)
+  rmeans_tr  <- rowMeans2(as.matrix(outer_list$Treatment))
+  rSd_tr     <- rowSds(as.matrix(outer_list$Treatment))
+  rSE_tr     <- rSd_tr / sqrt(nsim)
+  ci_low_tr  <- rmeans_tr - 1.96 * rSE_tr
+  ci_high_tr <- rmeans_tr + 1.96 * rSE_tr
+  tr.data <- data.frame("mean"    = rmeans_tr,
+                        "se"      = rSE_tr,
+                        "ci_low"  = ci_low_tr,
+                        "ci_high" = ci_high_tr,
+                        "cov"     = rnames_tr)
+  tr.data$group <- "Treatment"
+  
+  rnames_pl  <- rownames(outer_list$Placebo)
+  rmeans_pl  <- rowMeans2(as.matrix(outer_list$Placebo))
+  rSd_pl     <- rowSds(as.matrix(outer_list$Placebo))
+  rSE_pl     <- rSd_pl / sqrt(nsim)
+  ci_low_pl  <- rmeans_pl - 1.96 * rSE_pl
+  ci_high_pl <- rmeans_pl + 1.96 * rSE_pl
+  pl.data    <- data.frame("mean"    = rmeans_pl,
+                           "se"      = rSE_pl,
+                           "ci_low"  = ci_low_pl,
+                           "ci_high" = ci_high_pl,
+                           "cov"     = rnames_pl)
+  pl.data$group <- "Placebo"
+  returndata <- rbind(tr.data, pl.data)
+  return(returndata)
+}
+
+
+MeanCICovars <- function(outer) {
+  returnlist <- Map(TrPlMeanCI, outer)
+  return(returnlist)
+}
+
 ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim) {
+  # load in functions from GlobalEnv into current enviornment for clusterExport
+  force(RandomizeTreatment2)
+  force(pbkrtest::KRmodcomp)
+  force(pbkrtest::getKR)
+  force(lme4::lmer)
+  force(dplyr::bind_cols)
+  force(splitstackshape::stratified)
+  force(CalcProportionPos)
+  force(`%notin%`)
+  force(setTxtProgressBar)
+  opts <- list(chunkSize=10)
+  #################
+  
   cat("Beginning simulation")
   cat("\n")
-  cat("\n")
+  init_iter_list                      <-  list()
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
@@ -1067,16 +1200,9 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   data_extended             <-  simr::getData(smallmodel_extended)
   levels_extended           <-  levels(data_extended$RID)
   sample_size_init          <-  list()
-  for(i in sample_sizes) {
-   sample_size_name         <- paste("ss_", i, sep="")
-   cat("Sample Size: ", i, sep="")
-   cat("\n")
-   cat("\n")
-   init_iter_list_pval                <- list()
-   init_iter_list_prop_treatment      <- list()
-   init_iter_list_prop_placebo        <- list()
-   for(j in 1:nsim) {    
-    cat("\r", j, " out of ", nsim, " complete", sep = "")   
+  #define inner loop for parallelization
+    .nsiminnerloop <- function(j) {
+    cat("\r", j, " out of ", nsim, " complete", sep = "")
     sample.levels            <-  sample(levels_extended, size = i * 2)
     data_sample              <-  subset(data_extended, RID %in% sample.levels)
     sample_baseline          <-  data_sample[!duplicated(data_sample$RID), ]
@@ -1089,71 +1215,100 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
                                                "small_model_reponse"  = simulate_response_smallmodel)
     colnames(refit_data_outcomes) <- c("large_model_response", 
                                        "small_model_response")
-    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated)
-    refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
-    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
-    iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small)
-    pval                          <- getKR(iter_kr_ftest, "p.value")
-    init_iter_list_pval[[j]]                     <- pval
-    init_iter_list_prop_treatment[[j]]           <- prop[["Treatment"]]
-    init_iter_list_prop_placebo[[j]]             <- prop[["Placebo"]]
+    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
+    refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + 
+                                                                     AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
+                                                                     data = fit_iter_data, REML = TRUE) 
     
-   }
-   cat("\n")
-   cat("\n")
-   sample_size_init[[sample_size_name]] <- init_iter_list_pval
-   init_props_list_treatment[[sample_size_name]]  <- init_iter_list_prop_treatment
-   init_props_list_placebo[[sample_size_name]]    <- init_iter_list_prop_placebo
+    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
+    iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
+    pval                          <- getKR(iter_kr_ftest, "p.value")
+    return(list("pval"      = pval,
+                "Treatment" = prop[["Treatment"]],
+                "Placebo"   = prop[["Placebo"]]))
   }
-  init_props_list_treatment <- Map(function(x){do.call(bind_rows, x)}, init_props_list_treatment)
-  init_props_list_placebo <- Map(function(x){do.call(bind_rows, x)}, init_props_list_placebo)
-  sample_size_init <- data.frame(sapply(sample_size_init,c))
-  sample_size_init[sample_size_init <= 0.05]      <- "y"
-  sample_size_init[sample_size_init != "y"]       <- "n"
-  conf.inter <- GetConfInt(sample_size_init)
-  return(list("Successes" = sample_size_init, 
-              "ci"        = conf.inter, 
-              "Treatment_Proportions" = init_props_list_treatment, 
-              "Placebo_Proportions"   = init_props_list_placebo))
+  pb <- txtProgressBar(min = 1, max=nsim, style = 1)
+  envlist    <- mget(ls())
+  envlist    <- names(envlist)
+  env.append <- c("RandomizeTreatment2","KRmodcomp",
+                  "getKR","lmer","bind_cols","stratified", 
+                  ".nsiminnerloop", 
+                  "CalcProportionPos", 
+                  "%notin%")
+  
+  #create cluster
+  cl <- makeCluster(10, outfile="")
+  doSNOW::registerDoSNOW(cl)
+  envlist <- append(envlist, env.append)
+  clusterExport(cl, envlist, envir = environment())
+  t1 <- Sys.time()
+  outer <- foreach(i = sample_sizes, .options.nws=opts) %:%
+            foreach(j = 1:nsim, .combine='c', .inorder=FALSE) %dopar% {
+              setTxtProgressBar(pb, j)
+              .nsiminnerloop(j)
+            }
+  t2     <- Sys.time()
+  stopCluster(cl)
+  names(outer) <- paste("SS_", sample_sizes, sep="")
+  outer        <- Map(CombineOutcomes, outer)
+  for(i in 1:length(outer)) {
+   outer[[i]][["sample_size"]] <- sample_sizes[i]
+  }
+  successes               <- CalcSuccesses(outer, nsim) 
+  conf.inter              <- GetConfInt(successes)
+  balance.cov.diagnostics <- BalanceDiagnostics(outer)
+  mean_cis_covariates     <- MeanCICovars(outer)
+  timerun <- difftime(t2, t1, units = "mins")
+  return(list("Successes"   = successes, 
+              "power.data"  = conf.inter, 
+              "cov.balance" = outer,
+              "mean_cis_covariate" = mean_cis_covariates,
+              "prop.tests"  = balance.cov.diagnostics,
+              "time_to_run" = timerun))
 }
 
 
+CombineSimPlots_ManualSimulation <- function(simlist, limits) {
+  nonenrich <- simlist[[1]] 
+  name1 <- names(simlist)[1]
+  sumstats_non <- nonenrich$power.data
+  sumstats_non$Group <- name1
+  sumstats_non$nlevels <- limits
+  plot.df <- sumstats_non
+  for(i in 2:length(simlist)){
+    enriched <- simlist[[i]]
+    name <- names(simlist)[i]
+    enriched <- enriched$power.data
+    enriched$Group <- name
+    enriched$nlevels <- limits
+    plot.df <- rbind(plot.df, enriched)
+  }
+  gplot.sim <- ggplot(data = plot.df, aes(x=nlevels, y=mean * 100, colour=Group)) +geom_errorbar(aes(ymin=ci.low * 100, ymax=ci.high * 100)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
+  gplot.sim <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)") +ylim(0, 100) + geom_hline(yintercept = 80, linetype="dashed")
+  return(list("plot" = gplot.sim, "fullstats" = plot.df))
+} 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-trymanual <- ManualSimulation(formula_largemodel = formula.earlyad.hipp.simulation.rs,
-                              largemodel         = simulation.model.earlyad.hipp.rs,
-                              formula_smallmodel = formula.earlyad.hipp.rs,
-                              smallmodel         = model.earlyad.hipp.rs,
-                              sample_sizes       = c(10, 20, 30),
-                              nsim = 5)
-
-
-
-StratifyContinuous <- function(longdata, stratcols) {
-  bline      <- longdata[!duplicated(longdata$RID),]
-  bline      <- StratifyContVar(bline, stratcols = stratcols)
-  post.strat <- paste(stratcols, "_strat", sep="")
-  bline      <- bline[,c("RID", post.strat)]
-  longdata   <- merge(longdata, bline, by="RID", all.x=TRUE)
-  return(longdata)
+PlotCovariateBalance <- function(sim_fitted, sample_size) {
+  balancedata <- sim_fitted$mean_cis_covariate[[sample_size]]
+  covs_renamed <-  c("fullcaa.0"= "CAA(-)", "fulllewy.0" = "Lewy(-)",
+                     "fulltdp43.0" = "TDP43(-)", "PTGENDER.Female" = "Sex(F)",
+                     "Age_bl_strat" = "Age(Cat:0)", "PTEDUCAT_bl_strat.0" = "Educ(Cat:0)", 
+                     "MMSE_bl_strat.0" = "MMSE(Cat:0)", "CDGLOBAL_bl.0.5"= "CDR(0.5)", "TauPos_full_bl.0" = "Tau(-)")
+  balancedata$cov2 <- covs_renamed[balancedata$cov]
+  plot.gg <- ggplot(balancedata, aes(x=cov2, y=mean, colour=group)) + geom_point() + geom_errorbar(aes(ymin=ci_low, ymax=ci_high))
+  plot.gg <- plot.gg + scale_colour_discrete(name= "Treatment Group") + ylab("Proportion of Covariate per Group") +xlab("Covariate")
+  return(plot.gg)
 }
 
 
+All.pair.ttests <- function(data.list, col.name) {
+  c1 <- data.list[[1]][[col.name]]
+  c2 <- data.list[[2]][[col.name]]
+  c3 <- data.list[[3]][[col.name]]
+  
+  t1 <- t.test(c1, c2)
+  t2 <- t.test(c1, c3)
+  t3 <- t.test(c2, c3)
+  return(list(t1, t2, t3))
+}

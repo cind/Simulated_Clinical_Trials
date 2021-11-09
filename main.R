@@ -19,3 +19,6 @@ source("/Users/adamgabriellang/Desktop/clinical_trial_sim/processing_merged_data
 #files saved:
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/earlyadsim.R")
 
+
+
+
