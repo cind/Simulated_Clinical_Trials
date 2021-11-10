@@ -22,7 +22,10 @@ library(foreach)
 library(parallel)
 library(doParallel)
 
+
+
 `%notin%` <- Negate(`%in%`)
+
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
   
   
@@ -115,25 +118,25 @@ SetNeuroData <- function(data) {
   data["Lewy_pos_path"][which(data$NPLBOD %in% c(8,9)), ]        <- NA
   data["CAA_path"][which(!is.na(data$NPAMY)), ]      <- 0
   data["CAA_path"][which(data$NPAMY %in% c(2,3)),]   <- 1
-  for(i in 1:nrow(data)) {
-    if(!is.na(data["TDP_pos_path"][i,])) {
-      data["fulltdp43"][i,] <- data["TDP_pos_path"][i,]
-    } else if(!is.na(data["TDP43"][i,])) {
-      data["fulltdp43"][i,] <- data["TDP43"][i,]
-    }
-    
-    if(!is.na(data["Lewy_pos_path"][i,])) {
-      data["fulllewy"][i,] <- data["Lewy_pos_path"][i,]
-    } else if(!is.na(data["LEWY"][i,])) {
-      data["fulllewy"][i,] <- data["LEWY"][i,]
-    }
-    
-    if(!is.na(data["CAA_path"][i,])) {
-      data["fullcaa"][i,] <- data["CAA_path"][i,]
-    } else if(!is.na(data["CAA"][i,])) {
-      data["fullcaa"][i,] <- data["CAA"][i,]
-    }
-  }
+  #for(i in 1:nrow(data)) {
+  #  if(!is.na(data["TDP_pos_path"][i,])) {
+  #    data["fulltdp43"][i,] <- data["TDP_pos_path"][i,]
+  #  } else if(!is.na(data["TDP43"][i,])) {
+  #    data["fulltdp43"][i,] <- data["TDP43"][i,]
+  #  }
+  #  
+  #  if(!is.na(data["Lewy_pos_path"][i,])) {
+  #    data["fulllewy"][i,] <- data["Lewy_pos_path"][i,]
+  #  } else if(!is.na(data["LEWY"][i,])) {
+  #    data["fulllewy"][i,] <- data["LEWY"][i,]
+  #  }
+  #  
+  #  if(!is.na(data["CAA_path"][i,])) {
+  #    data["fullcaa"][i,] <- data["CAA_path"][i,]
+  #  } else if(!is.na(data["CAA"][i,])) {
+  #    data["fullcaa"][i,] <- data["CAA"][i,]
+  #  }
+  #}
   return(data)
 }
 
@@ -383,8 +386,8 @@ CombineSimPlots <- function(power.list, limits) {
 
 QuickAdjust <- function(data) {
   data$RID <- factor(data$RID)
-  data <- data[order(data$RID, data$M_vis, decreasing = FALSE),]
-  data <- TimeSinceBaseline(data, "M_vis")
+  data <- data[order(data$RID, data$M, decreasing = FALSE),]
+  data <- TimeSinceBaseline(data, "M")
   data <- subset(data, new_time <= 24)
   data$new_time <- (data$new_time / 12)
   return(data)
@@ -611,14 +614,12 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   }
   print(fixd)
   if(length(unique(data$CDGLOBAL_bl)) == 1) {
-  fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl",  "new_time:treat1")]
+  fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl",  "new_time:treat1")]
   } else {
-     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDER_blMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
+     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
    }
   sigma.mod        <- summary(model)$sigma - 2
   varcor.mod       <- VarCorr(model)
-  print(sigma.mod)
-  print(varcor.mod)
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
   return(constr.lme)
 }
@@ -692,12 +693,13 @@ ZscoreAdj <- function(data, col_names, control.data) {
 
 RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
   stratifydf <- data
-  stratifydf$stratvar <- interaction(stratifydf$fullcaa, stratifydf$fulllewy, stratifydf$fulltdp, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
-                                     stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_full_bl)
-  stratifieddata      <- stratified(stratifydf, "stratvar", size = c(.5), bothSets = TRUE)
+  stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
+                                     stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
+  stratifydf$stratvar   <- factor(stratifydf$stratvar)
+  stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = TRUE)
   names(stratifieddata) <- c("Treatment", "Placebo")
-  get.props           <- Map(CalcProportionPos, stratifieddata)
-  treatmentrids       <- stratifieddata[[1]]
+  get.props             <- Map(CalcProportionPos, stratifieddata)
+  treatmentrids         <- stratifieddata[[1]]
   treatmentrids       <- unique(treatmentrids$RID)
   controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
   treatmentrows       <- subset(longdata, RID %in% treatmentrids)
@@ -715,8 +717,8 @@ RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
 
 
 
-CalcProportionPos <- function(data, keepcols = c("fullcaa", "fulllewy", "fulltdp43", "PTGENDER", "AGE_bl_strat",
-                                                 "PTEDUCAT_bl_strat","MMSE_bl_strat", "CDGLOBAL_bl", "TauPos_full_bl")) {
+CalcProportionPos <- function(data, keepcols = c("CAAPos", "LewyPos", "TDP43Pos", "PTGENDER", "AGE_bl_strat",
+                                                 "PTEDUCAT_bl_strat","MMSE_bl_strat", "CDGLOBAL_bl", "TauPos_bl")) {
   data <- as.data.frame(data)
   data <- data[,keepcols]
   prop <- Map(function(x) {table(x)/sum(table(x))}, data)
@@ -724,11 +726,6 @@ CalcProportionPos <- function(data, keepcols = c("fullcaa", "fulllewy", "fulltdp
   prop <- unlist(prop)
   return(prop)
 }
-
-
-
-
-
 
 
 
@@ -762,7 +759,7 @@ StratifyContVar <- function(data, stratcols) {
 
 MapLmer <- function(newdata, formula.model) {
   newdata <- newdata
-  lme.fit <- lmer(as.formula(formula.model), data = newdata, REML=TRUE)
+  lme.fit <- lmer(as.formula(formula.model), data = newdata, REML=TRUE, control = lmerControl(optimizer ="nmkbw"))
   return(lme.fit)
 }
 
@@ -854,6 +851,9 @@ MMRMTime <- function(data) {
   for(i in 1:length(new_time_match)) {
     data["new_time_mmrm"][which(data$new_time==new_time_vec[i]), ] <- new_time_match[i]
   }
+  drops <- which(duplicated(data[,c("RID", "new_time_mmrm")]) == TRUE)
+  data <- data[-drops,]
+  data$RID <- factor(data$RID)
   return(data)
 }
 
@@ -943,7 +943,7 @@ PlotSimulationDPM <- function(model, data, y, ylab) {
 
 
 GetRelContributions <- function(model, data) {
-  neuropat <- data[,c("fulllewy", "fullcaa", "fulltdp43")]
+  neuropat <- data[,c("LewyPos", "CAAPos", "TDP43Pos")]
   fullrate <- fixef(model)["new_time"]
   ranefmodel<- ranef(model)[[1]]
   ranefrate <- ranefmodel[[2]]
@@ -952,14 +952,14 @@ GetRelContributions <- function(model, data) {
   frame <- data.frame("RID" = ranef.ids,
                       "Rate_Decline" = subjectdecline)
   bline <- data[!duplicated(data$RID),]
-  bline <- bline[,c("RID", "fulllewy", "fullcaa", "fulltdp43")]
+  bline <- bline[,c("RID", "LewyPos", "CAAPos", "TDP43Pos")]
   frame <- merge(frame, bline, by="RID")
   frame$AD <- 1
   relpercentages <- data.frame("Lewy" = rep(100, nrow(frame)), 
                                "CAA" = rep(29, nrow(frame)),  
                                "TDP" = rep(52, nrow(frame)), 
                                "AD" = rep(100, nrow(frame)))
-  cogstatus  <- data.frame(lapply(frame[,c("fulllewy", "fullcaa", "fulltdp43", "AD")], function(x) as.numeric(as.character(x))))
+  cogstatus  <- data.frame(lapply(frame[,c("LewyPos", "CAAPos", "TDP43Pos", "AD")], function(x) as.numeric(as.character(x))))
   totalcognitivedecline <- cogstatus * relpercentages
   colnames.append <- colnames(totalcognitivedecline)
   colnames(totalcognitivedecline)<- paste(colnames.append, "_relative_AD_perc", sep="")
@@ -976,7 +976,7 @@ GetRelContributions <- function(model, data) {
   relratesmean <- unlist(Map(function(x) {round(mean(x), 3)}, rel_rates))
   sdperc <- unlist(Map(function(x) {round(sd(x), 3)}, totalcognitivedecline[,reldeclinenames]))
   meanperc <- unlist(Map(function(x) {round(mean(x), 3)}, totalcognitivedecline[,reldeclinenames]))
-  num_subjects <- unlist(Map(function(x) {length(which(x == 1))}, totalcognitivedecline[,c("fulllewy", "fullcaa", "fulltdp43", "AD")]))
+  num_subjects <- unlist(Map(function(x) {length(which(x == 1))}, totalcognitivedecline[,c("LewyPos", "CAAPos", "TDP43Pos", "AD")]))
   totalratedecline <- round(fixef(model)["new_time"], 3)
   rates.data <- list("Path" = names(relratesmean),
                      "Mean_Rate" = relratesmean,
@@ -991,9 +991,9 @@ GetRelContributions <- function(model, data) {
 
 
 BuildNeuroCountPlot <- function(RelContr) {
-  trytable <- RelContr$Table[,c("fulllewy", "fullcaa", "fulltdp43", "AD")]
+  trytable <- RelContr$Table[,c("LewyPos", "CAAPos", "TDP43Pos", "AD")]
   OnlyAD <- rep(0, nrow(trytable))
-  OnlyAD[which(trytable$fulllewy==0 & trytable$fullcaa==0 & trytable$fulltdp43==0)] <- 1
+  OnlyAD[which(trytable$LewyPos==0 & trytable$CAAPos==0 & trytable$TDP43Pos==0)] <- 1
   trytable <- model.matrix(AD ~ .^2, data=trytable)
   colnames(trytable) <- c("AD", "Lewy", "CAA", "TDP43", "Lewy & CAA", "Lewy & TDP43", "CAA & TDP43")
   trytable <- as.data.frame(trytable)
@@ -1217,10 +1217,11 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
                                        "small_model_response")
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
     refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + 
-                                                                     AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
-                                                                     data = fit_iter_data, REML = TRUE) 
+                                                                     AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
+                                                                     data = fit_iter_data, REML = TRUE, control = lmerControl(optimizer = "nmkbw")) 
     
-    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER_bl + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), data = fit_iter_data, REML = TRUE)
+    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
+                                                data = fit_iter_data, REML = TRUE, control = lmerControl(optimizer = "nmkbw"))
     iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
     pval                          <- getKR(iter_kr_ftest, "p.value")
     return(list("pval"      = pval,
@@ -1237,7 +1238,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
                   "%notin%")
   
   #create cluster
-  cl <- makeCluster(10, outfile="")
+  cl <- makeCluster(2, outfile="")
   doSNOW::registerDoSNOW(cl)
   envlist <- append(envlist, env.append)
   clusterExport(cl, envlist, envir = environment())
@@ -1311,4 +1312,12 @@ All.pair.ttests <- function(data.list, col.name) {
   t2 <- t.test(c1, c3)
   t3 <- t.test(c2, c3)
   return(list(t1, t2, t3))
+}
+
+
+Adni_Age <- function(df) {
+  bdayposit <- paste(df$PTDOBYY, df$PTDOBMM, "01", sep="-")
+  bdayposit <- as.POSIXct(bdayposit, format="%Y-%m-%d")
+  timediff <- round(difftime(df$EXAMDATE, bdayposit, units = "weeks") / 52, 2)
+  return(timediff)
 }
