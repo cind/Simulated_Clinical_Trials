@@ -618,7 +618,7 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   } else {
      fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
    }
-  sigma.mod        <- summary(model)$sigma - 2
+  sigma.mod        <- summary(model)$sigma
   varcor.mod       <- VarCorr(model)
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
   return(constr.lme)
@@ -1175,6 +1175,8 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   force(pbkrtest::KRmodcomp)
   force(pbkrtest::getKR)
   force(lme4::lmer)
+  force(lme4::lmerControl)
+  force(dfoptim::nmkb)
   force(dplyr::bind_cols)
   force(splitstackshape::stratified)
   force(CalcProportionPos)
@@ -1218,10 +1220,10 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
     refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + 
                                                                      AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
-                                                                     data = fit_iter_data, REML = TRUE, control = lmerControl(optimizer = "nmkbw")) 
+                                                                     data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw")) 
     
     refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
-                                                data = fit_iter_data, REML = TRUE, control = lmerControl(optimizer = "nmkbw"))
+                                                data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
     iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
     pval                          <- getKR(iter_kr_ftest, "p.value")
     return(list("pval"      = pval,
@@ -1238,7 +1240,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
                   "%notin%")
   
   #create cluster
-  cl <- makeCluster(2, outfile="")
+  cl <- makeCluster(1, outfile="")
   doSNOW::registerDoSNOW(cl)
   envlist <- append(envlist, env.append)
   clusterExport(cl, envlist, envir = environment())
@@ -1313,6 +1315,29 @@ All.pair.ttests <- function(data.list, col.name) {
   t3 <- t.test(c2, c3)
   return(list(t1, t2, t3))
 }
+
+
+All.pair.prop.test <- function(data.list, col.name, level) {
+  c1 <- data.list[[1]][[col.name]]
+  c2 <- data.list[[2]][[col.name]]
+  c3 <- data.list[[3]][[col.name]]
+  
+  c1.length <- length(c1)
+  c2.length <- length(c2)
+  c3.length <- length(c3)
+  
+  c1.pos <- length(which(c1 == level))
+  c2.pos <- length(which(c2 == level))
+  c3.pos <- length(which(c3 == level))
+  
+  t1 <- prop.test(c(c1.pos, c2.pos), c(c1.length, c2.length))
+  t2 <- prop.test(c(c1.pos, c3.pos), c(c1.length, c3.length))
+  t3 <- prop.test(c(c2.pos, c3.pos), c(c2.length, c3.length))
+  return(list(t1, t2, t3))
+}
+
+
+
 
 
 Adni_Age <- function(df) {
