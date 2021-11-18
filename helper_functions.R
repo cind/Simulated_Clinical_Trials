@@ -118,25 +118,6 @@ SetNeuroData <- function(data) {
   data["Lewy_pos_path"][which(data$NPLBOD %in% c(8,9)), ]        <- NA
   data["CAA_path"][which(!is.na(data$NPAMY)), ]      <- 0
   data["CAA_path"][which(data$NPAMY %in% c(2,3)),]   <- 1
-  #for(i in 1:nrow(data)) {
-  #  if(!is.na(data["TDP_pos_path"][i,])) {
-  #    data["fulltdp43"][i,] <- data["TDP_pos_path"][i,]
-  #  } else if(!is.na(data["TDP43"][i,])) {
-  #    data["fulltdp43"][i,] <- data["TDP43"][i,]
-  #  }
-  #  
-  #  if(!is.na(data["Lewy_pos_path"][i,])) {
-  #    data["fulllewy"][i,] <- data["Lewy_pos_path"][i,]
-  #  } else if(!is.na(data["LEWY"][i,])) {
-  #    data["fulllewy"][i,] <- data["LEWY"][i,]
-  #  }
-  #  
-  #  if(!is.na(data["CAA_path"][i,])) {
-  #    data["fullcaa"][i,] <- data["CAA_path"][i,]
-  #  } else if(!is.na(data["CAA"][i,])) {
-  #    data["fullcaa"][i,] <- data["CAA"][i,]
-  #  }
-  #}
   return(data)
 }
 
@@ -161,12 +142,7 @@ CreateBaselineVar <- function(data, timecol, baselinecol) {
 }
 
 
-CreateBaselineVar2 <- function(data, timecol, baselinecol) {
-  blinename <- paste(baselinecol, "_bl", sep="")
-  returnframe <- merge(data,setNames(subset(data, timecol==0, select=c("RID", baselinecol)),
-                                     c("RID", blinename)), by="RID", all=TRUE)
-  return(returnframe)
-}
+
 
 
 SampleJointDistribution <- function(data, sampling.list, n) {
@@ -612,7 +588,6 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   } else {
     fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
   }
-  print(fixd)
   if(length(unique(data$CDGLOBAL_bl)) == 1) {
   fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl",  "new_time:treat1")]
   } else {
@@ -1211,8 +1186,8 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
     prop                     <-  treatment.out[["props"]]
     data_sample_treated      <-  treatment.out[["data"]]
-    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
-    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, re.form=NULL)
+    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, re.form=NULL)
     refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel,
                                                "small_model_reponse"  = simulate_response_smallmodel)
     colnames(refit_data_outcomes) <- c("large_model_response", 
