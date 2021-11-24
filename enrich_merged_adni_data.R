@@ -1,4 +1,4 @@
-adni.fulldata     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/Data/adni_fulldata.csv")
+adni.fulldata     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/adni_fulldata.csv")
 
 #seperate dataframes by outcome
 necc.cols.t11     <- c("RID", "M", "ADAS11","CAAPos", "LewyPos", "TDP43Pos")
@@ -69,11 +69,11 @@ ad.scen1.generic.long.tplus        <- purrr::map2(ad.scen1.generic.tplus, full.d
 ad.scen1.earlyage.long             <- purrr::map2(ad.scen1.earlyage, full.data.list, PullLongData)
 ad.scen1.nopath.tplus.long         <- purrr::map2(ad.scen1.nopath.tplus, full.data.list, PullLongData)
 
-
+if(FALSE) {
 saveRDS(list("cs" = early.ad.scen1.generic,       "long" = early.ad.scen1.generic.long),       "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts.rds")
 saveRDS(list("cs" = early.ad.scen1.generic.tplus, "long" = early.ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_tplus.rds")
 saveRDS(list("cs" = early.ad.scen1.nopath.tplus,  "long" = early.ad.scen1.nopath.tplus.long),  "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_neuroenriched_tplus.rds")
-
+}
 
 saveRDS(list("cs" = ad.scen1.generic,       "long" = ad.scen1.generic.long),       "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/adcohorts.rds")
 saveRDS(list("cs" = ad.scen1.generic.tplus, "long" = ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/adcohorts_tplus.rds")

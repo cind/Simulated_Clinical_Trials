@@ -179,7 +179,7 @@ vol.ims.icv.adj <- paste(vol.ims, "icv_adj", sep="_")
 image_data_for_adj <- image_data_for_adj[,c("RID", "VISCODE", vol.ims.icv.adj)]
 
 #merge imaging columns
-adni.fulldata <- merge(adni.fulldata, image_data_for_adj, by=c("RID", "VISCODE"), all.x=TRUE)
+adni.fulldata <- merge(adni.fulldata, image_data_for_adj, by = c("RID", "VISCODE"), all.x=TRUE)
 adni.fulldata["DX_bl"][which(adni.fulldata$DX_bl == 1), ] <- "CN"
 adni.fulldata["DX_bl"][which(adni.fulldata$DX_bl == 2), ] <- "MCI"
 adni.fulldata["DX_bl"][which(adni.fulldata$DX_bl == 3), ] <- "Dementia"

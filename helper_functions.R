@@ -1186,8 +1186,8 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
     prop                     <-  treatment.out[["props"]]
     data_sample_treated      <-  treatment.out[["data"]]
-    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, re.form=NULL)
-    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, re.form=NULL)
+    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
     refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel,
                                                "small_model_reponse"  = simulate_response_smallmodel)
     colnames(refit_data_outcomes) <- c("large_model_response", 
@@ -1321,3 +1321,5 @@ Adni_Age <- function(df) {
   timediff <- round(difftime(df$EXAMDATE, bdayposit, units = "weeks") / 52, 2)
   return(timediff)
 }
+
+
