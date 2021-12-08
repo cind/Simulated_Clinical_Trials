@@ -939,6 +939,7 @@ saveRDS(earlyadmpacc.neuro.tplus.sim.list, "/Users/adamgabriellang/Desktop/clini
 
 
 saveRDS(earlyadmpacc.sim.tau.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc_tau.rds")
+
 saveRDS(earlyadmpacc.tplus.sim.tau.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc_tplus_tau.rds")
 saveRDS(earlyadmpacc.neuro.tplus.sim.tau.list, "/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc_neuro_tplus_tau.rds")
 

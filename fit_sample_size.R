@@ -12,16 +12,16 @@ source("/Users/adamgabriellang/Desktop/clinical_trial_sim/helper_functions.R")
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/email_setup.R")
 
 
-splitinput <- strsplit(fitted_simulation_list, "/")[[1]]
-splitinput <- splitinput[length(splitinput)]
+#splitinput <- strsplit(fitted_simulation_list, "/")[[1]]
+#splitinput <- splitinput[length(splitinput)]
 
-write.email.subject.start <- paste("Simulation Start:", splitinput, Sys.time(), sep = " ")
-write.email.text.start <- paste("Starting simulation at", Sys.time(), "for", splitinput, sep = " ")
+#write.email.subject.start <- paste("Simulation Start:", splitinput, Sys.time(), sep = " ")
+#write.email.text.start <- paste("Starting simulation at", Sys.time(), "for", splitinput, sep = " ")
 
-email.start <- WriteEmail(subject = write.email.subject.start,
-                          text = write.email.text.start)
+#email.start <- WriteEmail(subject = write.email.subject.start,
+#                          text = write.email.text.start)
 
-gm_send_message(email.start)
+#gm_send_message(email.start)
 
 
 
@@ -40,10 +40,10 @@ ss_fitted <- ManualSimulation(formula_largemodel    = models_list$formula_largem
 saveRDS(ss_fitted, return_file)
 
 
-write.email.subject.end <- paste("Simulation Finished:", splitinput, Sys.time(), sep = " ")
-write.email.text.end <- paste("Finished simulation at", Sys.time(), "for", splitinput, sep = " ")
+#write.email.subject.end <- paste("Simulation Finished:", splitinput, Sys.time(), sep = " ")
+#write.email.text.end <- paste("Finished simulation at", Sys.time(), "for", splitinput, sep = " ")
 
-email.end <- WriteEmail(subject = write.email.subject.end,
-                          text = write.email.text.end)
+#email.end <- WriteEmail(subject = write.email.subject.end,
+#                          text = write.email.text.end)
 
-gm_send_message(email.end)
+#gm_send_message(email.end)

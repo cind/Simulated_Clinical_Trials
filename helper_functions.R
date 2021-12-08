@@ -591,7 +591,7 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   if(length(unique(data$CDGLOBAL_bl)) == 1) {
   fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl",  "new_time:treat1")]
   } else {
-     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl",  "new_time:treat1")]
+     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl1",  "new_time:treat1")]
    }
   sigma.mod        <- summary(model)$sigma
   varcor.mod       <- VarCorr(model)
@@ -838,7 +838,7 @@ CalculateSampleAtPower <- function(mean.points, conf.low.points, conf.hi.points,
   m.mean     <- (mean.points[2] - mean.points[1]) / (mean.points[4] - mean.points[3])
   conf.low.m <- (conf.low.points[2] - conf.low.points[1]) / (conf.low.points[4] - conf.low.points[3])
   conf.hi.m <- (conf.hi.points[2] - conf.hi.points[1]) / (conf.hi.points[4] - conf.hi.points[3])
-  mean.shift <- (80-mean.points[1]) / m.mean
+  mean.shift <- (80 - mean.points[1]) / m.mean
   new.x <- mean.points[3] + mean.shift
   conf.low.m.shift <- (80 - conf.low.points[1]) / conf.low.m
   new.conf.low <- conf.low.points[3] + conf.low.m.shift
@@ -848,6 +848,30 @@ CalculateSampleAtPower <- function(mean.points, conf.low.points, conf.hi.points,
   
   return(c("mean" = new.x, "ci.low" = new.conf.low, "ci.high" = new.conf.hi))
 }
+
+CalculateSampleAtPowerModel <- function(model.list) {
+  init.data <- data.frame(matrix(ncol = 3))
+  modelnames <- names(model.list)
+  for(i in 1:length(model.list)) {
+  model_unenriched <- model.list[[i]]
+  model_unenriched_powerdata <- model_unenriched$power.data
+  model_unenriched_powerdata$ss <- as.numeric(sapply(strsplit(rownames(model_unenriched_powerdata), "_"), "[[", 2))
+  lowerval <- max(which(model_unenriched_powerdata$mean < .8))
+  upperval <- min(which(model_unenriched_powerdata$mean >= .8))
+  xvals <- c(model_unenriched_powerdata["ss"][lowerval,], model_unenriched_powerdata["ss"][upperval,])
+  samplesize <- CalculateSampleAtPower(c(model_unenriched_powerdata["mean"][lowerval,]*100, model_unenriched_powerdata["mean"][upperval,]*100, xvals),
+                                       c(model_unenriched_powerdata["ci.low"][lowerval,]*100, model_unenriched_powerdata["ci.low"][upperval,]*100, xvals),
+                                       c(model_unenriched_powerdata["ci.high"][lowerval,]*100, model_unenriched_powerdata["ci.high"][upperval,]*100, xvals))
+  init.data <- rbind(init.data, samplesize)
+  }
+  init.data <- init.data[2:nrow(init.data),]
+  rownames(init.data) <- modelnames
+  colnames(init.data) <- c("Mean", "CI_high", "CI_low")
+  return(init.data)
+}
+
+
+
 
 
 
@@ -866,6 +890,8 @@ Keep1YearorMore <- function(data.list) {
     df <- subset(df, RID %notin% rid.drops)
     df.cs <- subset(df.cs, RID %notin% rid.drops)
     df$RID <- factor(df$RID)
+    df.cs$CDGLOBAL_bl <- factor(df.cs$CDGLOBAL_bl)
+    df$CDGLOBAL_bl <- factor(df$CDGLOBAL_bl)
     df.cs$RID <- factor(df.cs$RID)
     newlist.cs[[i]] <- df.cs
     newlist.long[[i]] <- df
@@ -1063,6 +1089,18 @@ CalcSuccesses <- function(list, rows) {
 }
 
 
+CombineIters<- function(list, rows) {
+  init_pval_data <- data.frame(matrix(nrow = rows))
+  for(i in 1:length(list)) {
+    sublist <- list[[i]]
+    init_pval_data <- cbind(init_pval_data, sublist$pval)
+  }
+  init_pval_data[,1] <- NULL
+  colnames(init_pval_data) <- names(list)
+  return(init_pval_data)
+}
+
+
 StratifyContinuous <- function(longdata, stratcols) {
   bline      <- longdata[!duplicated(longdata$RID),]
   bline      <- StratifyContVar(bline, stratcols = stratcols)
@@ -1144,7 +1182,7 @@ MeanCICovars <- function(outer) {
   return(returnlist)
 }
 
-ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim) {
+ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL) {
   # load in functions from GlobalEnv into current enviornment for clusterExport
   force(RandomizeTreatment2)
   force(pbkrtest::KRmodcomp)
@@ -1166,17 +1204,35 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
-  smallmodel_data           <-  getData(smallmodel)
-  smallmodel_data_baseline  <-  smallmodel_data[!duplicated(smallmodel_data$RID), ]
-  levels_data               <- nrow(smallmodel_data_baseline)
+  smallmodel_data             <-  data
+  smallmodel_data_baseline    <-  smallmodel_data[!duplicated(smallmodel_data$RID), ]
+  levels_data                 <-  nrow(smallmodel_data_baseline)
+  
   if(max(sample_sizes) < levels_data) {
-    smallmodel_extended     <-  simr::extend(smallmodel, along="RID", n = levels_data * 3)
-  } else {
-  smallmodel_extended       <-  simr::extend(smallmodel, along="RID", n = (max(sample_sizes) * 3))
+    smallmodel_extended       <-  simr::extend(smallmodel, along = "RID", n = levels_data * 3)
+    data_extended             <-  simr::getData(smallmodel_extended)
+    } else {
+  smallmodel_extended         <-  simr::extend(smallmodel, along = "RID", n = (max(sample_sizes) * 3))
+  data_extended               <-  simr::getData(smallmodel_extended)
   }
-  data_extended             <-  simr::getData(smallmodel_extended)
+  
+  if(!is.null(trial_duration)) {
+    if(trial_duration > max(smallmodel_data_baseline$new_time)) {
+    smallmodel_extended       <- simr::extend(smallmodel_extended, along = "new_time", values = seq(0, trial_duration, by=.5))
+    data_extended             <- simr::getData(smallmodel_extended)
+    } else {
+     data_extended <- subset(data_extended, new_time <= trial_duration)
+   }
+  }
   levels_extended           <-  levels(data_extended$RID)
   sample_size_init          <-  list()
+  form_sm_split <- strsplit(formula_smallmodel, "~")[[1]][2]
+  iter_form_sm  <- paste("small_model_response", form_sm_split, sep="~")
+  
+  form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
+  iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
+  
+  
   #define inner loop for parallelization
     .nsiminnerloop <- function(j) {
     cat("\r", j, " out of ", nsim, " complete", sep = "")
@@ -1193,11 +1249,10 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     colnames(refit_data_outcomes) <- c("large_model_response", 
                                        "small_model_response")
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
-    refit_small                   <- lme4::lmer(formula = as.formula("small_model_response  ~ new_time + PTEDUCAT_bl + 
-                                                                     AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
+    refit_small                   <- lme4::lmer(formula = as.formula(iter_form_sm), 
                                                                      data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw")) 
     
-    refit_large                   <- lme4::lmer(formula = as.formula("large_model_response ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"), 
+    refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
                                                 data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
     iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
     pval                          <- getKR(iter_kr_ftest, "p.value")
@@ -1232,6 +1287,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   for(i in 1:length(outer)) {
    outer[[i]][["sample_size"]] <- sample_sizes[i]
   }
+  ftestdf                 <- CombineIters(outer, nsim)
   successes               <- CalcSuccesses(outer, nsim) 
   conf.inter              <- GetConfInt(successes)
   balance.cov.diagnostics <- BalanceDiagnostics(outer)
@@ -1242,7 +1298,8 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
               "cov.balance" = outer,
               "mean_cis_covariate" = mean_cis_covariates,
               "prop.tests"  = balance.cov.diagnostics,
-              "time_to_run" = timerun))
+              "time_to_run" = timerun,
+              "ftestdf" = ftestdf))
 }
 
 
@@ -1321,5 +1378,62 @@ Adni_Age <- function(df) {
   timediff <- round(difftime(df$EXAMDATE, bdayposit, units = "weeks") / 52, 2)
   return(timediff)
 }
+
+
+PlotT1Error <- function(data, sample_sizes, ycol, title) {
+data_5 <- as.numeric(Map(function(x){length(which(x <= 0.05)) / length(x)}, data))
+data_4 <- as.numeric(Map(function(x){length(which(x <= 0.04)) / length(x)}, data))
+data_3 <- as.numeric(Map(function(x){length(which(x <= 0.03)) / length(x)}, data))
+data_2 <- as.numeric(Map(function(x){length(which(x <= 0.02)) / length(x)}, data))
+data_1 <- as.numeric(Map(function(x){length(which(x <= 0.01)) / length(x)}, data))
+data_errors <- as.data.frame(do.call(cbind, list(data_1, data_2, data_3, data_4, data_5)))
+colnames(data_errors) <-  c("c_01", "c_02","c_03","c_04","c_05")
+rownames(data_errors) <- paste("SS_", sample_sizes, sep="")
+data_errors <- as.data.frame(t(data_errors))
+data_errors <- data_errors*100
+data_errors$sig_level <- c(.01, .02, .03, .04, .05)
+gg <- ggplot(data_errors, aes_string(y=ycol, x="sig_level")) + geom_point(shape="triangle") + ylab("Type I Error (%)") + xlab("Significance Level") + scale_x_reverse() +ylim(0, 6)
+print(data_errors)
+gg <- gg+ labs(title = title)
+return(gg)
+}
+
+
+
+
+
+CombineTrialDuration <- function(power_list) {
+  power_list_object <- Map(function(x){x$power.data}, power_list)
+  power_list_object[[1]]$trial_duration <- 1
+  power_list_object[[1]]$samplesize<- substr(rownames(power_list_object[[1]]), start = 4, stop = 6)
+  power_list_object[[2]]$trial_duration <- 1.5
+  power_list_object[[2]]$samplesize<- substr(rownames(power_list_object[[2]]), start = 4, stop = 6)
+  power_list_object[[3]]$trial_duration <- 2
+  power_list_object[[3]]$samplesize<- substr(rownames(power_list_object[[3]]), start = 4, stop = 6)
+  power_list_object[[4]]$trial_duration <- 2.5
+  power_list_object[[4]]$samplesize<- substr(rownames(power_list_object[[4]]), start = 4, stop = 6)
+  power_list_object[[5]]$trial_duration <- 3
+  power_list_object[[5]]$samplesize<- substr(rownames(power_list_object[[5]]), start = 4, stop = 6)
+  power_list_object[[6]]$trial_duration <- 3.5
+  power_list_object[[6]]$samplesize<- substr(rownames(power_list_object[[6]]), start = 4, stop = 6)
+  power_list_object[[7]]$trial_duration <- 4
+  power_list_object[[7]]$samplesize<- substr(rownames(power_list_object[[7]]), start = 4, stop = 6)
+  
+  power_list_object <- do.call(rbind, power_list_object)
+  min.samp <- min(as.numeric(power_list_object$samplesize))
+  max.samp <- max(as.numeric(power_list_object$samplesize))
+
+  
+  my3d.adas.un.tau <- plot_ly(x=as.numeric(power_list_object$trial_duration), y=as.numeric(power_list_object$samplesize), z=as.numeric(power_list_object$mean*100), type="scatter3d", mode="markers")
+  peep.tau<- expand.grid("v1" = seq(1, 4, by=.5), "v2" = seq(min.samp, max.samp, by=20))
+  z.tau <- t(outer(peep.tau$v2, peep.tau$v1, function(x,y)  0*x +0*y + 80))
+  my3d.adas.un.tau <- add_trace(my3d.adas.un.tau, y=~peep.tau$v2, x=~peep.tau$v1, z=z.tau, type="surface", colorscale=list(c(0, 1), c("red", "red")), showscale=FALSE) 
+  my3d.adas.un.tau <- my3d.adas.un.tau %>% layout(scene=list(xaxis=list(title="Trial Duration (Years)"), yaxis=list(title="Sample Size per Arm"), zaxis=list(title="Statistical Power (%)")))
+  return(list("plot" = my3d.adas.un.tau,
+              "peep.tau" = peep.tau,
+              "z.tau" = z.tau,
+              "data" = power_list_object))
+}
+
 
 
