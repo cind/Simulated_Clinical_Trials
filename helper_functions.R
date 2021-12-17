@@ -1195,6 +1195,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   force(CalcProportionPos)
   force(`%notin%`)
   force(setTxtProgressBar)
+  force(lmerTest::as_lmerModLmerTest)
   opts <- list(chunkSize=10)
   #################
   
@@ -1204,30 +1205,32 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
-  smallmodel_data             <-  data
-  smallmodel_data_baseline    <-  smallmodel_data[!duplicated(smallmodel_data$RID), ]
-  levels_data                 <-  nrow(smallmodel_data_baseline)
+  largemodel_data             <-  simr::getData(largemodel)
+  largemodel_data_baseline    <-  largemodel_data[!duplicated(largemodel_data$RID), ]
+  levels_data                 <-  nrow(largemodel_data_baseline)
+  
+  #duplicate subjects with new id names
   
   if(max(sample_sizes) < levels_data) {
-    smallmodel_extended       <-  simr::extend(smallmodel, along = "RID", n = levels_data * 3)
-    data_extended             <-  simr::getData(smallmodel_extended)
+    largemodel_extended       <-  simr::extend(largemodel, along = "RID", n = levels_data * 3)
+    data_extended             <-  simr::getData(largemodel_extended)
     } else {
-  smallmodel_extended         <-  simr::extend(smallmodel, along = "RID", n = (max(sample_sizes) * 3))
-  data_extended               <-  simr::getData(smallmodel_extended)
+  largemodel_extended         <-  simr::extend(largemodel, along = "RID", n = (max(sample_sizes) * 3))
+  data_extended               <-  simr::getData(largemodel_extended)
   }
   
   if(!is.null(trial_duration)) {
-    if(trial_duration > max(smallmodel_data_baseline$new_time)) {
-    smallmodel_extended       <- simr::extend(smallmodel_extended, along = "new_time", values = seq(0, trial_duration, by=.5))
-    data_extended             <- simr::getData(smallmodel_extended)
+    if(trial_duration > max(largemodel_data_baseline$new_time)) {
+    largemodel_extended       <- simr::extend(largemodel_extended, along = "new_time", values = seq(0, trial_duration, by=.5))
+    data_extended             <- simr::getData(largemodel_extended)
     } else {
      data_extended <- subset(data_extended, new_time <= trial_duration)
    }
   }
   levels_extended           <-  levels(data_extended$RID)
-  sample_size_init          <-  list()
-  form_sm_split <- strsplit(formula_smallmodel, "~")[[1]][2]
-  iter_form_sm  <- paste("small_model_response", form_sm_split, sep="~")
+  #sample_size_init          <-  list()
+  #form_sm_split <- strsplit(formula_smallmodel, "~")[[1]][2]
+  #iter_form_sm  <- paste("small_model_response", form_sm_split, sep="~")
   
   form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
   iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
@@ -1239,23 +1242,35 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     sample.levels            <-  sample(levels_extended, size = i * 2)
     data_sample              <-  subset(data_extended, RID %in% sample.levels)
     sample_baseline          <-  data_sample[!duplicated(data_sample$RID), ]
+    
+    #split into treatment and placebo groups while balancing subjects
     treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
+    
+    
+    
     prop                     <-  treatment.out[["props"]]
     data_sample_treated      <-  treatment.out[["data"]]
-    simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
-    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
-    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel,
-                                               "small_model_reponse"  = simulate_response_smallmodel)
-    colnames(refit_data_outcomes) <- c("large_model_response", 
-                                       "small_model_response")
-    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
-    refit_small                   <- lme4::lmer(formula = as.formula(iter_form_sm), 
-                                                                     data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw")) 
     
+    #simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    
+    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel
+                                               #"small_model_reponse"  = simulate_response_smallmodel
+                                               )
+    colnames(refit_data_outcomes) <- c("large_model_response" 
+                                       #"small_model_response"
+                                       )
+    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
+    #refit_small                   <- lme4::lmer(formula = as.formula(iter_form_sm), 
+     #                                                                data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw")) 
     refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
                                                 data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
-    iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
-    pval                          <- getKR(iter_kr_ftest, "p.value")
+    #iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
+    #pval                          <- getKR(iter_kr_ftest, "p.value")
+    pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
+
+    
+    
     return(list("pval"      = pval,
                 "Treatment" = prop[["Treatment"]],
                 "Placebo"   = prop[["Placebo"]]))
@@ -1301,6 +1316,9 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
               "time_to_run" = timerun,
               "ftestdf" = ftestdf))
 }
+
+
+
 
 
 CombineSimPlots_ManualSimulation <- function(simlist, limits) {
@@ -1404,21 +1422,14 @@ return(gg)
 
 CombineTrialDuration <- function(power_list) {
   power_list_object <- Map(function(x){x$power.data}, power_list)
-  power_list_object[[1]]$trial_duration <- 1
-  power_list_object[[1]]$samplesize<- substr(rownames(power_list_object[[1]]), start = 4, stop = 6)
-  power_list_object[[2]]$trial_duration <- 1.5
-  power_list_object[[2]]$samplesize<- substr(rownames(power_list_object[[2]]), start = 4, stop = 6)
-  power_list_object[[3]]$trial_duration <- 2
-  power_list_object[[3]]$samplesize<- substr(rownames(power_list_object[[3]]), start = 4, stop = 6)
-  power_list_object[[4]]$trial_duration <- 2.5
-  power_list_object[[4]]$samplesize<- substr(rownames(power_list_object[[4]]), start = 4, stop = 6)
-  power_list_object[[5]]$trial_duration <- 3
-  power_list_object[[5]]$samplesize<- substr(rownames(power_list_object[[5]]), start = 4, stop = 6)
-  power_list_object[[6]]$trial_duration <- 3.5
-  power_list_object[[6]]$samplesize<- substr(rownames(power_list_object[[6]]), start = 4, stop = 6)
-  power_list_object[[7]]$trial_duration <- 4
-  power_list_object[[7]]$samplesize<- substr(rownames(power_list_object[[7]]), start = 4, stop = 6)
-  
+  trialdurations <- seq(1,4,by=.5)
+  if(length(power_list_object) == 6) {
+    trialdurations <- trialdurations[!trialdurations==1.5]
+  }
+  for(i in 1:length(power_list)) {
+    power_list_object[[i]]$trial_duration <- trialdurations[i]
+    power_list_object[[i]]$samplesize<- substr(rownames(power_list_object[[i]]), start = 4, stop = 6)
+  }
   power_list_object <- do.call(rbind, power_list_object)
   min.samp <- min(as.numeric(power_list_object$samplesize))
   max.samp <- max(as.numeric(power_list_object$samplesize))
@@ -1436,4 +1447,43 @@ CombineTrialDuration <- function(power_list) {
 }
 
 
+hybridapproach <- function(formula, model, time=c(0,.5,1,1.5,2), nsim, 
+                           pct.change=.5, delta=NULL, parameter="new_time", sample.prop =.8) {
+  cat("Beginning simulation")
+  cat("\n")
+  data_extended               <-  simr::getData(model)
+  levels.id                   <- levels(factor(data_extended$RID))
+  return.n <- list()
+  for(i in 1:nsim) {
+    print(i)
+    levels.sample <- sample(levels.id, round((length(levels.id) * sample.prop)))
+    data_subset <- subset(data_extended, RID %in% levels.sample)
+    data_subset$RID <- factor(data_subset$RID)
+    sample_baseline          <-  data_subset[!duplicated(data_subset$RID), ]
+    treatment.out            <-  RandomizeTreatment2(sample_baseline, data_subset)
+    data_sample_treated      <-  treatment.out[["data"]]
+    refit_small               <- lme4::lmer(formula = as.formula(formula), 
+                                            data = data_subset, REML = TRUE)
+    fixef(refit_small)["treat1"] <- 0
+    fixef(refit_small)["new_time:treat1"] <- ((fixef(refit_small)["new_time"]) * -1) * pct.change
+    delta <-   fixef(refit_small)["new_time:treat1"] 
+    long.p <- longpower::lmmpower(refit_small, parameter=parameter, t=time, delta=delta, power=.8, sig.level=.05)
+    return.n[[i]] <- long.p
+  }
+  return(return.n)
+  }
+
+checkmean <- function(hybrid) {
+  n <- unlist(Map(function(x){(x$N) / 2}, hybrid))
+  return(c("mean" = mean(n), "sd" = sd(n)))
+}
+
+CalculateSampleAtPower_markdown <- function(data, y=80) {
+  lowerval <- max(which(data$mean < .8))
+  upperval <- min(which(data$mean >= .8))
+  data$samplesize <- as.numeric(data$samplesize)
+  xvals <- c(data["samplesize"][lowerval,], data["samplesize"][upperval,])
+  samplesize <- Cal(c(data["mean"][lowerval,]*100, data["mean"][upperval,]*100, xvals))
+  return(samplesize)
+}
 
