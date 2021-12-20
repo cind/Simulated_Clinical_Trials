@@ -876,12 +876,7 @@ saveRDS(earlyadhipp.neuro.tplus.sim.tau.list, "/Users/adamgabriellang/Desktop/cl
 
 
 
-check <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyad_hipp_tplus_tau_20.rds")
 
-peep<-getData(check$largemodel)
-largemodel <- check$largemodel
-summary(largemodel)
- as.numeric(summary(lmerTest::as_lmerModLmerTest(largemodel))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
 #MPACC #################################### #################################### ####################################
 
 earlyadmpacc.sim.list <- list("formula_largemodel" = formula.earlyad.mpacc.simulation.rs,
@@ -950,36 +945,43 @@ saveRDS(earlyadmpacc.neuro.tplus.sim.tau.list, "/Users/adamgabriellang/Desktop/c
 
 }
 
-checkadas    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13.rds")
-checkadastau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13_tplus.rds")
-checkadasnocopathtau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13_neuro_tplus.rds")
-checkhipp            <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/earlyadhipp.rds")
-checkhipptau         <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/earlyadhipp_tplus.rds")
-checkhippnocopathtau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/earlyadhipp_neuro_tplus.rds")
-checkmpacc           <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc.rds")
-checkmpacctau        <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc_tplus.rds")
-checkmpaccnocopathtau <-readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/earlyadmpacc_neuro_tplus.rds")
+
+checkadas    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyad_adas13_unenriched_overall_20.rds")
+checkadastau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyad_adas13_tplus_overall_20.rds")
+checkadasnocopathtau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyadadas13_neuro_tplus_overall_20.rds")
+checkhipp    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyad_hipp_unenriched_overall_20.rds")
+checkhipptau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyad_hipp_tplus_overall_20.rds")
+checkhippnocopathtau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyadhipp_neuro_tplus_overall_20.rds")
+checkmpacc    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/fitted_mpacc/earlyad_mpacc_unenriched_overall_20.rds")
+checkmpacctau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/fitted_mpacc/earlyad_mpacc_tplus_overall_20.rds")
+checkmpaccnocopathtau <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/fitted_mpacc/earlyadmpacc_neuro_tplus_overall_20.rds")
 
 
+checkadas.t    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyad_adas13_unenriched_tau_20.rds")
+checkadastau.t <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyad_adas13_tplus_tau_20.rds")
+checkhipp.t    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyad_hipp_unenriched_tau_20.rds")
+checkhipptau.t <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/hipp_power_data/fitted_hipp/earlyad_hipp_tplus_tau_20.rds")
+checkmpacc.t    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/fitted_mpacc/earlyad_mpacc_unenriched_tau_20.rds")
+checkmpacctau.t <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/mpacc_power_data/fitted_mpacc/earlyad_mpacc_tplus_tau_20.rds")
 
 
+all.new.list <- list("checkadas" = checkadas,
+                     "checkadastau" = checkadastau,
+                     "checkadasnocopathtau" = checkadasnocopathtau,
+                     "checkhipp" = checkhipp,
+                     "checkhipptau" = checkhipptau,
+                     "checkhippnocopathtau" = checkhippnocopathtau,
+                     "checkmpacc" = checkmpacc,
+                     "checkmpacctau" = checkmpacctau,
+                     "checkmpaccnocopathtau" = checkmpaccnocopathtau,
+                     "checkadas.t" = checkadas.t,
+                     "checkadastau.t" = checkadastau.t,
+                     "checkhipp.t" = checkhipp.t,
+                     "checkhipptau.t" = checkhipptau.t,
+                     "checkmpacc.t" = checkmpacc.t,
+                     "checkmpacctau.t" = checkmpacctau.t)
 
 
+checkall <- Map(function(x){CalculateSampleAtPower_markdown(x$power.data)}, all.new.list)
 
-
-
-
-
-
-adas_hybrid            <- hybridapproach(formula = checkadas$formula_largemodel, model = checkadas$largemodel, nsim=500, pct.change=.5, sample.prop =.8)
-adastau_hybrid         <- hybridapproach(formula = checkadastau$formula_largemodel, model = checkadastau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-adasnocpathtau_hybrid  <- hybridapproach(formula = checkadasnocopathtau$formula_largemodel, model = checkadasnocopathtau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-
-hipp_hybrid            <- hybridapproach(formula = checkhipp$formula_largemodel, model = checkhipp$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-hipp_tau               <- hybridapproach(formula = checkhipptau$formula_largemodel, model = checkhipptau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-hipp_nocopathtau       <- hybridapproach(formula = checkhippnocopathtau$formula_largemodel, model = checkhippnocopathtau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-
-mpacc_hybrid           <- hybridapproach(formula = checkmpacc$formula_largemodel, model = checkmpacc$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-mpacc_tau              <- hybridapproach(formula = checkmpacctau$formula_largemodel, model = checkmpacctau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
-mpacc_nocopathtau      <- hybridapproach(formula = checkmpaccnocopathtau$formula_largemodel, model = checkmpaccnocopathtau$largemodel, nsim=500,  pct.change=.5, sample.prop =.8)
 
