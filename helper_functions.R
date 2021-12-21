@@ -12,6 +12,7 @@ library(simr)
 library(stringr)
 library(matrixStats)
 library(lmerTest)
+library(MASS)
 library(splitstackshape)
 library(purrr)
 library(ggplot2)
@@ -1478,12 +1479,99 @@ checkmean <- function(hybrid) {
   return(c("mean" = mean(n), "sd" = sd(n)))
 }
 
+Cal <- function(mean.points) {
+  m.mean     <- (mean.points[2] - mean.points[1]) / (mean.points[4] - mean.points[3])
+  mean.shift <- (80 - mean.points[1]) / m.mean
+  new.x <- mean.points[3] + mean.shift
+  return(new.x)
+}
+
+
+
+props.covs <- function(list) {
+  if(length(list)==2) {
+    cutoff <- c(list[1] / (list[1] + list[2]))
+  }
+   else if(length(list)==3) {
+    cutoff <- c((list[1] / (list[1] + list[2] + list[3])), (list[2] / (list[1] + list[2] + list[3])))
+  } else {
+    cutoff <- NULL
+  }
+  return(cutoff)
+}
+
+
+CalcCutoff <- function(mean, sd, pi) {
+  return.vec <- c()
+  for(i in 1:length(pi)) {
+    pi.i <- pi[[i]]
+    cutoff <- mean + (sd * qnorm(pi.i))
+    cutoff <- exp(cutoff)
+    return.vec <- append(return.vec,cutoff)
+  }
+  return(return.vec)
+}
+
+
+
 CalculateSampleAtPower_markdown <- function(data, y=80) {
   lowerval <- max(which(data$mean < .8))
   upperval <- min(which(data$mean >= .8))
-  data$samplesize <- as.numeric(data$samplesize)
+  data$samplesize <- as.numeric(sapply(strsplit(rownames(data), "_"), "[[", 2))
   xvals <- c(data["samplesize"][lowerval,], data["samplesize"][upperval,])
   samplesize <- Cal(c(data["mean"][lowerval,]*100, data["mean"][upperval,]*100, xvals))
-  return(samplesize)
+  low <- Cal(c(data["ci.low"][lowerval,]*100, data["ci.low"][upperval,]*100, xvals))
+  hi<- Cal(c(data["ci.high"][lowerval,]*100, data["ci.high"][upperval,]*100, xvals))
+  return.val <- paste(round(samplesize,2), " (", round(hi,2), ",", round(low,2),")", sep="")
+  return(return.val)
+}
+
+check<-readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13.rds")
+testdata <- getData(check$largemodel)
+testdata <- testdata[!duplicated(testdata$RID),]
+DefineMVND <- function(data, n) {
+  thresholds <- c()
+  data <- data[,c("PTEDUCAT_bl",  "AGE_bl", "PTGENDER", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos")]
+  names.vec <- c("PTGENDER", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos")
+  continuousdata <- data[,c("PTEDUCAT_bl",  "AGE_bl", "MMSE_bl")]
+  for(i in 1:length(names.vec)) {
+    name.i <- names.vec[i]
+    levels.i <- levels(factor(data[,name.i]))
+    if(length(levels.i) == 1) {
+      } else {
+    newvec <- mapvalues(data[,name.i], from=levels.i, to = c(1:length(levels.i)))
+    continuousdata[name.i] <- newvec
+    }
+  }
+  continuousdata <- continuousdata %>% mutate_all(as.character)
+  continuousdata <- continuousdata %>% mutate_all(as.numeric)
+  empir.distr    <- continuousdata
+  continuousdata <- as.matrix(continuousdata)
+  continuousdatalog   <- log(continuousdata)
+  covmatrix           <- cov(continuousdatalog)
+  means               <- colMeans(continuousdatalog)
+  simcovs             <- MASS::mvrnorm(n=n, mu=means, Sigma = covmatrix)
+  simcovs             <- exp(simcovs)
+  cont.thresh         <- continuousdatalog[,names.vec]
+  means.log           <- colMeans2(cont.thresh)
+  sds.log             <- colSds(cont.thresh)
+  names(means.log)    <- names(sds.log) <- names.vec
+  pi                  <- Map(table, empir.distr[,names.vec])
+  pi                  <- Map(props.covs, pi)
+  simcovs             <- as.data.frame(simcovs)
+  simcovs1 <- simcovs
+  for(i in names.vec) {
+    threshold <- CalcCutoff(means.log[[i]], sds.log[[i]], pi[[i]])
+    levels.i <- levels(factor(data[,i]))
+     if(length(threshold)==1) {
+    simcovs[i][which(simcovs[i]  <=  threshold[1]),] <- levels.i[1]
+    simcovs[i][which(simcovs[i]  !=  levels.i[1]),]  <- levels.i[2]
+    } else {
+      simcovs[i][which(simcovs[i] <= threshold[1]),] <- levels.i[1]
+      simcovs[i][which(simcovs[i]  > threshold[1] & simcovs[i]  <= threshold[2]),] <- levels.i[2]
+      simcovs[i][which(simcovs[i]  > threshold[2]),] <- levels.i[3]
+    }
+  }
+  return(simcovs)
 }
 
