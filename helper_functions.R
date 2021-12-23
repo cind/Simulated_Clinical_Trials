@@ -22,9 +22,7 @@ library(pbkrtest)
 library(foreach)
 library(parallel)
 library(doParallel)
-
-
-
+library(HDtest)
 `%notin%` <- Negate(`%in%`)
 
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
@@ -672,18 +670,21 @@ RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
   stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
                                      stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
   stratifydf$stratvar   <- factor(stratifydf$stratvar)
-  stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = TRUE)
+
+  stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = FALSE)
+  return(stratifieddata)
   names(stratifieddata) <- c("Treatment", "Placebo")
+  return(stratifieddata)
   get.props             <- Map(CalcProportionPos, stratifieddata)
   treatmentrids         <- stratifieddata[[1]]
-  treatmentrids       <- unique(treatmentrids$RID)
-  controlrids         <- data["RID"][which(data$RID %notin% treatmentrids),]
-  treatmentrows       <- subset(longdata, RID %in% treatmentrids)
-  treatmentrows$treat <- rep(1, nrow(treatmentrows))
-  controlrows         <- subset(longdata, RID %in% controlrids)
-  controlrows$treat   <- rep(0, nrow(controlrows))
-  returndata          <- rbind(treatmentrows, controlrows)
-  returndata$treat    <- factor(returndata$treat)
+  treatmentrids         <- unique(treatmentrids$RID)
+  controlrids           <- data["RID"][which(data$RID %notin% treatmentrids),]
+  treatmentrows         <- subset(longdata, RID %in% treatmentrids)
+  treatmentrows$treat   <- rep(1, nrow(treatmentrows))
+  controlrows           <- subset(longdata, RID %in% controlrids)
+  controlrows$treat     <- rep(0, nrow(controlrows))
+  returndata            <- rbind(treatmentrows, controlrows)
+  returndata$treat      <- factor(returndata$treat)
   if(!is.null(no.prop)) {
     return(returndata)
   } else {
@@ -1526,32 +1527,33 @@ CalculateSampleAtPower_markdown <- function(data, y=80) {
   return(return.val)
 }
 
-check<-readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13.rds")
+check<-readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13_tplus.rds")
 testdata <- getData(check$largemodel)
+testdata$PTGENDER <- relevel(testdata$PTGENDER, "Male")
 testdata <- testdata[!duplicated(testdata$RID),]
+
 DefineMVND <- function(data, n) {
   thresholds <- c()
-  data <- data[,c("PTEDUCAT_bl",  "AGE_bl", "PTGENDER", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos")]
-  names.vec <- c("PTGENDER", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos")
+  data <- data[,c("PTEDUCAT_bl",  "AGE_bl", "PTGENDER", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")]
+  names.vec <- c("PTGENDER", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")
   continuousdata <- data[,c("PTEDUCAT_bl",  "AGE_bl", "MMSE_bl")]
   for(i in 1:length(names.vec)) {
     name.i <- names.vec[i]
     levels.i <- levels(factor(data[,name.i]))
-    if(length(levels.i) == 1) {
-      } else {
     newvec <- mapvalues(data[,name.i], from=levels.i, to = c(1:length(levels.i)))
     continuousdata[name.i] <- newvec
-    }
   }
   continuousdata <- continuousdata %>% mutate_all(as.character)
   continuousdata <- continuousdata %>% mutate_all(as.numeric)
   empir.distr    <- continuousdata
-  continuousdata <- as.matrix(continuousdata)
+  cov.b4              <- empir.distr
+  continuousdata      <- as.matrix(continuousdata)
   continuousdatalog   <- log(continuousdata)
   covmatrix           <- cov(continuousdatalog)
   means               <- colMeans(continuousdatalog)
   simcovs             <- MASS::mvrnorm(n=n, mu=means, Sigma = covmatrix)
   simcovs             <- exp(simcovs)
+  cov.after           <- simcovs
   cont.thresh         <- continuousdatalog[,names.vec]
   means.log           <- colMeans2(cont.thresh)
   sds.log             <- colSds(cont.thresh)
@@ -1561,8 +1563,11 @@ DefineMVND <- function(data, n) {
   simcovs             <- as.data.frame(simcovs)
   simcovs1 <- simcovs
   for(i in names.vec) {
-    threshold <- CalcCutoff(means.log[[i]], sds.log[[i]], pi[[i]])
     levels.i <- levels(factor(data[,i]))
+    if(length(levels.i) == 1) {
+      simcovs[i] <- 1
+    } else {
+    threshold <- CalcCutoff(means.log[[i]], sds.log[[i]], pi[[i]])
      if(length(threshold)==1) {
     simcovs[i][which(simcovs[i]  <=  threshold[1]),] <- levels.i[1]
     simcovs[i][which(simcovs[i]  !=  levels.i[1]),]  <- levels.i[2]
@@ -1570,8 +1575,54 @@ DefineMVND <- function(data, n) {
       simcovs[i][which(simcovs[i] <= threshold[1]),] <- levels.i[1]
       simcovs[i][which(simcovs[i]  > threshold[1] & simcovs[i]  <= threshold[2]),] <- levels.i[2]
       simcovs[i][which(simcovs[i]  > threshold[2]),] <- levels.i[3]
+     }
     }
   }
-  return(simcovs)
+  return(list("cov.b4" = data, "simcovs"=simcovs))
 }
 
+
+ExtendLongitudinal <- function(data) {
+  rows <- nrow(data)
+  data <- data %>% slice(rep(1:n(), each=5))
+  rids <- rep(1:rows, 5)
+  rids <- rids[order(rids, decreasing = FALSE)]
+  new_time <- rep(seq(0, 2, by=.5), rows)
+  data$RID <- factor(rids)
+  data$new_time <- new_time
+  return(data)
+}
+
+
+testmvd <- DefineMVND(testdata, 329)
+
+
+
+
+CompareDistributions <- function(mvnd.out) {
+  b4    <- mvnd.out$cov.b4
+  after <- mvnd.out$simcovs
+  b4 <- b4[,c("PTEDUCAT_bl",  "AGE_bl", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "PTGENDER")]
+  after <- after[,c("PTEDUCAT_bl",  "AGE_bl",  "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "PTGENDER")]
+  b4 <- b4 %>% mutate_all(as.character)
+  b4["PTGENDER"][which(b4$PTGENDER=="Male"), ] <- 1
+  b4["PTGENDER"][which(b4$PTGENDER=="Female"), ] <- 2
+  b4 <- b4 %>% mutate_all(as.numeric)
+  after <- after %>% mutate_all(as.character)
+  after["PTGENDER"][which(after$PTGENDER=="Male"), ] <- 1
+  after["PTGENDER"][which(after$PTGENDER=="Female"), ] <- 2
+  after <- after %>% mutate_all(as.numeric)
+  dist.test <- cramer::cramer.test(as.matrix(b4), as.matrix(after), sim="permutation")
+  return(dist.test)
+}
+
+check    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13.rds")
+testdata <- getData(check$largemodel)
+testdata$PTGENDER <- relevel(testdata$PTGENDER, "Male")
+testdata <- testdata[!duplicated(testdata$RID),]
+testmvd  <- DefineMVND(testdata, 329)
+testmvdlong <- ExtendLongitudinal(testmvd$simcovs)
+testmvdlong <- StratifyContinuous(testmvdlong, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+testmvd <- testmvdlong[!duplicated(testmvdlong$RID),]
+check2<-RandomizeTreatment2(testmvd, testmvdlong)
+abs((nrow(testmvd) / 2) - nrow(check2))
