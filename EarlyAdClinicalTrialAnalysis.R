@@ -1,4 +1,3 @@
-library(longpower)
 save.rds <- FALSE
 
 earlyadcohorts                     <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts.rds")
@@ -83,8 +82,9 @@ colnames(earlyad.adas13.desc)     <- c("Diagnosis", "Age (Baseline)", "Gender",
                                      "ADAS13 (Baseline)" ,"mPACCtrailsB (Baseline)", "Tau+ (Baseline)", 
                                      "Amy+ (Baseline)", "CAA", "TDP43", "Lewy")
 
-earlyad.adas13.desc <- table1(earlyad.adas13.desc, splitby = ~ Diagnosis)
+earlyad.adas13.desc <- table1(earlyad.adas13.desc)
 earlyad.adas13.desc <- earlyad.adas13.desc$Table1
+View(earlyad.adas13.desc)
 earlyad.adas13.desc <- earlyad.adas13.desc[c(1, 6:9, 11:nrow(earlyad.adas13.desc)),]
 
 
@@ -505,7 +505,9 @@ earlyad.adas13.plotting.data <- rbind(earlyad.adas13.plotting.data,
                                       earlyad.neuroenriched.tplus.adas13.plotting.data)
 earlyad.adas13.mmrm.plot <- ggplot(earlyad.adas13.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
 earlyad.adas13.mmrm.plot <- earlyad.adas13.mmrm.plot + xlab("Time (Years)") + ylab("Mean ADAS-13 (95% CI)") + ylim(20, 40)
-
+tiff('mpaccmrmm.tiff', units="in", width=6, height=3, res=500)
+earlyad.mpacc.mmrm.plot
+dev.off()
 ######################## HIPPOCAMPUS ######################## 
 earlyad.hipp.plotting.data <- rbind(earlyad.hipp.plotting.data,
                                     earlyad.tplus.hipp.plotting.data,
@@ -615,20 +617,35 @@ simulation.model.earlyad.neuroenriched.tplus.adas13.tau.rs <- BuildSimulationMod
                                                                                          relcontr.earlyad.neuroenriched.tplus.adas13$Rates_Data$Mean_Rate[[4]])
 
 
+
+plotting.simulation.model.earlyad.adas13.tau.rs <- simulation.model.earlyad.adas13.tau.rs
+fixef(plotting.simulation.model.earlyad.adas13.tau.rs)["new_time"] <- relcontr.earlyad.adas13$Rates_Data$Mean_Rate[[4]]
+plotting.simulation.model.earlyad.tplus.adas13.tau.rs <- simulation.model.earlyad.tplus.adas13.tau.rs
+fixef(plotting.simulation.model.earlyad.tplus.adas13.tau.rs)["new_time"] <- relcontr.earlyad.tplus.adas13$Rates_Data$Mean_Rate[[4]]
+
+
+
 dpms.earlyad.adas13 <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.adas13.rs,
                                      "Tau+" = simulation.model.earlyad.tplus.adas13.rs,
                                      "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.adas13.rs), ylab="ADAS13", ylim.low = 19, ylim.high = 35.5)
 
-dpms.earlyad.adas13.tau <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.adas13.tau.rs,
-                                     "Tau+" = simulation.model.earlyad.tplus.adas13.tau.rs,
+dpms.earlyad.adas13.tau <- DPMPlots(list("No Enrichment" = plotting.simulation.model.earlyad.adas13.tau.rs,
+                                     "Tau+" = plotting.simulation.model.earlyad.tplus.adas13.tau.rs,
                                      "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.adas13.tau.rs), ylab="ADAS13", ylim.low = 19, ylim.high = 35.5)
 
+
+adas.overall.vs.tau <- OverallvsTau(dpms.earlyad.adas13, dpms.earlyad.adas13.tau, ylab = "ADAS13", ymin = 19, ymax =33.5)
+tiff('adastplussdpm.tiff', units="in", width=7, height=3, res=400)
+adas.overall.vs.tau[[2]]
+dev.off()
 ######################## Hippcampus ######################## 
+
+
+
 formula.earlyad.hipp.rs                              <- "hipp_average~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
 long.earlyad.hipp_with_treatment                     <- StratifyContinuous(long.earlyad.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.tplus.hipp_with_treatment               <- StratifyContinuous(long.earlyad.tplus.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.hipp_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
-
 model.earlyad.hipp.rs                     <- MapLmer(newdata = long.earlyad.hipp_with_treatment,
                                                        formula.model = formula.earlyad.hipp.rs)
 
@@ -669,18 +686,25 @@ simulation.model.earlyad.neuroenriched.tplus.hipp.tau.rs <- BuildSimulationModel
                                                                                          formula.earlyad.hipp.simulation.rs, 
                                                                                          long.earlyad.neuroenriched.tplus.hipp_with_treatment, 
                                                                                          relcontr.earlyad.neuroenriched.tplus.hipp$Rates_Data$Mean_Rate[[4]])
+plotting.simulation.model.earlyad.hipp.tau.rs <- simulation.model.earlyad.hipp.tau.rs
+fixef(plotting.simulation.model.earlyad.hipp.tau.rs)["new_time"] <- relcontr.earlyad.hipp$Rates_Data$Mean_Rate[[4]]
+plotting.simulation.model.earlyad.tplus.hipp.tau.rs <- simulation.model.earlyad.tplus.hipp.tau.rs
+fixef(plotting.simulation.model.earlyad.tplus.hipp.tau.rs)["new_time"] <- relcontr.earlyad.tplus.hipp$Rates_Data$Mean_Rate[[4]]
 
 
 dpms.earlyad.hipp <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.hipp.rs,
                                      "Tau+" = simulation.model.earlyad.tplus.hipp.rs,
                                      "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.hipp.rs), ylab="Hippocampus", ylim.low = 2800, ylim.high = 4000)
 
-dpms.earlyad.hipp.tau <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.hipp.tau.rs,
-                                         "Tau+" = simulation.model.earlyad.tplus.hipp.tau.rs,
+dpms.earlyad.hipp.tau <- DPMPlots(list("No Enrichment" = plotting.simulation.model.earlyad.hipp.tau.rs,
+                                         "Tau+" = plotting.simulation.model.earlyad.tplus.hipp.tau.rs,
                                          "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.hipp.tau.rs), ylab="Hippocampus", ylim.low = 2800, ylim.high = 4000)
 
 
-
+hipp.overall.vs.tau <- OverallvsTau(dpms.earlyad.hipp, dpms.earlyad.hipp.tau, ylab = "Hippocampus", ymin = 2800, ymax =4100)
+tiff('hipptplussdpm.tiff', units="in", width=7, height=3, res=400)
+hipp.overall.vs.tau[[2]]
+dev.off()
 ######################## mPACCtrailsB ######################## 
 formula.earlyad.mpacc.rs                              <- "mPACCtrailsB~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
 long.earlyad.mpacc_with_treatment                     <- StratifyContinuous(long.earlyad.mpacc_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
@@ -729,14 +753,25 @@ simulation.model.earlyad.neuroenriched.tplus.mpacc.tau.rs <- BuildSimulationMode
 
 
 
+plotting.simulation.model.earlyad.mpacc.tau.rs <- simulation.model.earlyad.mpacc.tau.rs
+fixef(plotting.simulation.model.earlyad.mpacc.tau.rs)["new_time"] <- relcontr.earlyad.mpacc$Rates_Data$Mean_Rate[[4]]
+plotting.simulation.model.earlyad.tplus.mpacc.tau.rs <- simulation.model.earlyad.tplus.mpacc.tau.rs
+fixef(plotting.simulation.model.earlyad.tplus.mpacc.tau.rs)["new_time"] <- relcontr.earlyad.tplus.mpacc$Rates_Data$Mean_Rate[[4]]
+
+
 dpms.earlyad.mpacc <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.mpacc.rs,
                                    "Tau+" = simulation.model.earlyad.tplus.mpacc.rs,
-                                   "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.mpacc.rs), ylab="mPACCtrailsB", ylim.low = -19, ylim.high = -7)
+                                   "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.mpacc.rs), ylab="mpaccocampus", ylim.low = 2800, ylim.high = 4000)
 
-dpms.earlyad.mpacc.tau <- DPMPlots(list("No Enrichment" = simulation.model.earlyad.mpacc.tau.rs,
-                                       "Tau+" = simulation.model.earlyad.tplus.mpacc.tau.rs,
-                                       "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.mpacc.tau.rs), ylab="mPACCtrailsB", ylim.low = -19, ylim.high = -7)
+dpms.earlyad.mpacc.tau <- DPMPlots(list("No Enrichment" = plotting.simulation.model.earlyad.mpacc.tau.rs,
+                                       "Tau+" = plotting.simulation.model.earlyad.tplus.mpacc.tau.rs,
+                                       "No Copathologies Tau+" = simulation.model.earlyad.neuroenriched.tplus.mpacc.tau.rs), ylab="mpaccocampus", ylim.low = 2800, ylim.high = 4000)
 
+
+mpacc.overall.vs.tau <- OverallvsTau(dpms.earlyad.mpacc, dpms.earlyad.mpacc.tau, ylab = "mPACCtrailsB", ymin = -18, ymax =-8)
+tiff('mpacctplussdpm.tiff', units="in", width=7, height=3, res=400)
+mpacc.overall.vs.tau[[2]]
+dev.off()
 
 if(save.rds) {
 
@@ -984,4 +1019,5 @@ all.new.list <- list("checkadas" = checkadas,
 
 checkall <- Map(function(x){CalculateSampleAtPower_markdown(x$power.data)}, all.new.list)
 
+checkadas_new    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/fitted_adas13/earlyad_adas13_unenriched_tau_20.rds")
 

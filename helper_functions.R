@@ -22,7 +22,6 @@ library(pbkrtest)
 library(foreach)
 library(parallel)
 library(doParallel)
-library(HDtest)
 `%notin%` <- Negate(`%in%`)
 
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
@@ -598,6 +597,28 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   return(constr.lme)
 }
 
+BuildSimulationModelNoPathPlotting <- function(list, formula.model, data, treatment.effect) {
+  model            <- list
+  #adjusted.decline <- list[[2]]
+  fixd             <- fixef(model)
+  fixd["treat1"]   <- 0
+  if(treatment.effect =="controlled") {
+    fixd["new_time:treat1"] <- ((adjusted.decline * .5) * -1)
+  }  else if(is.numeric(treatment.effect)) {
+    fixd["new_time"] <- (treatment.effect)
+  } else {
+    fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
+  }
+  if(length(unique(data$CDGLOBAL_bl)) == 1) {
+    fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl",  "new_time:treat1")]
+  } else {
+    fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl1",  "new_time:treat1")]
+  }
+  sigma.mod        <- summary(model)$sigma
+  varcor.mod       <- VarCorr(model)
+  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
+  return(constr.lme)
+}
 
 BuildSignificanceTable <- function(model) {
   list.names <- list("AGE_bl" = "Age (Baseline)", 
@@ -666,15 +687,29 @@ ZscoreAdj <- function(data, col_names, control.data) {
 
 
 RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
+  `%notin%`  <- Negate(`%in%`)
   stratifydf <- data
   stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
                                      stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
   stratifydf$stratvar   <- factor(stratifydf$stratvar)
-
   stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = FALSE)
-  return(stratifieddata)
+  rownames(stratifieddata) <- 1:nrow(stratifieddata)
+  half <- round(nrow(data) / 2)
+  diff <- half - nrow(stratifieddata)
+  if(diff > 0) {
+    disjoint <- subset(stratifydf, RID %notin% stratifieddata$RID)
+    add.rows <- sample_n(disjoint, diff)
+    stratifieddata <- rbind(stratifieddata, add.rows)
+    placebo        <-  subset(stratifydf, RID %notin% stratifieddata$RID)
+  } else if(diff < 0)  {
+    drop.rows <- sample(1:nrow(stratifieddata), abs(diff))
+    stratifieddata <- stratifieddata[-drop.rows,]
+    placebo        <-  subset(stratifydf, RID %notin% stratifieddata$RID)
+  } else {
+    placebo        <-  subset(stratifydf, RID %notin% stratifieddata$RID)
+  }
+  stratifieddata <- list(stratifieddata, placebo)
   names(stratifieddata) <- c("Treatment", "Placebo")
-  return(stratifieddata)
   get.props             <- Map(CalcProportionPos, stratifieddata)
   treatmentrids         <- stratifieddata[[1]]
   treatmentrids         <- unique(treatmentrids$RID)
@@ -856,7 +891,7 @@ CalculateSampleAtPowerModel <- function(model.list) {
   modelnames <- names(model.list)
   for(i in 1:length(model.list)) {
   model_unenriched <- model.list[[i]]
-  model_unenriched_powerdata <- model_unenriched$power.data
+  model_unenriched_powerdata <- try(model_unenriched$power.data)
   model_unenriched_powerdata$ss <- as.numeric(sapply(strsplit(rownames(model_unenriched_powerdata), "_"), "[[", 2))
   lowerval <- max(which(model_unenriched_powerdata$mean < .8))
   upperval <- min(which(model_unenriched_powerdata$mean >= .8))
@@ -867,8 +902,17 @@ CalculateSampleAtPowerModel <- function(model.list) {
   init.data <- rbind(init.data, samplesize)
   }
   init.data <- init.data[2:nrow(init.data),]
-  rownames(init.data) <- modelnames
-  colnames(init.data) <- c("Mean", "CI_high", "CI_low")
+  substrRight <- function(x, n){
+    substr(x, nchar(x)-n+1, nchar(x))
+  }
+  
+  modelnames <- substrRight(modelnames, 2)
+  modelnames <- (as.numeric(modelnames) / 10)
+  init.data$td <- modelnames
+  colnames(init.data) <- c("Mean", "CI_high", "CI_low", "Trial Duration (Years)")
+
+  init.data <- init.data[,c("Trial Duration (Years)","Mean", "CI_low", "CI_high")]
+  
   return(init.data)
 }
 
@@ -1184,7 +1228,7 @@ MeanCICovars <- function(outer) {
   return(returnlist)
 }
 
-ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL) {
+ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL, t1errorsim) {
   # load in functions from GlobalEnv into current enviornment for clusterExport
   force(RandomizeTreatment2)
   force(pbkrtest::KRmodcomp)
@@ -1198,46 +1242,22 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   force(`%notin%`)
   force(setTxtProgressBar)
   force(lmerTest::as_lmerModLmerTest)
+  force(dplyr::sample_n)
   opts <- list(chunkSize=10)
   #################
-  
   cat("Beginning simulation")
   cat("\n")
   init_iter_list                      <-  list()
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
-  largemodel_data             <-  simr::getData(largemodel)
-  largemodel_data_baseline    <-  largemodel_data[!duplicated(largemodel_data$RID), ]
-  levels_data                 <-  nrow(largemodel_data_baseline)
-  
-  #duplicate subjects with new id names
-  
-  if(max(sample_sizes) < levels_data) {
-    largemodel_extended       <-  simr::extend(largemodel, along = "RID", n = levels_data * 3)
-    data_extended             <-  simr::getData(largemodel_extended)
-    } else {
-  largemodel_extended         <-  simr::extend(largemodel, along = "RID", n = (max(sample_sizes) * 3))
-  data_extended               <-  simr::getData(largemodel_extended)
-  }
-  
-  if(!is.null(trial_duration)) {
-    if(trial_duration > max(largemodel_data_baseline$new_time)) {
-    largemodel_extended       <- simr::extend(largemodel_extended, along = "new_time", values = seq(0, trial_duration, by=.5))
-    data_extended             <- simr::getData(largemodel_extended)
-    } else {
-     data_extended <- subset(data_extended, new_time <= trial_duration)
-   }
-  }
-  levels_extended           <-  levels(data_extended$RID)
-  #sample_size_init          <-  list()
-  #form_sm_split <- strsplit(formula_smallmodel, "~")[[1]][2]
-  #iter_form_sm  <- paste("small_model_response", form_sm_split, sep="~")
-  
+  data_extended <- data
   form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
   iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
-  
-  
+  levels_extended <- unique(data_extended$RID)
+  if(!is.null(t1errorsim)) {
+    fixef(largemodel)["new_time:treat1"] <- 0
+  }
   #define inner loop for parallelization
     .nsiminnerloop <- function(j) {
     cat("\r", j, " out of ", nsim, " complete", sep = "")
@@ -1247,28 +1267,18 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     
     #split into treatment and placebo groups while balancing subjects
     treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
-    
-    
-    
     prop                     <-  treatment.out[["props"]]
     data_sample_treated      <-  treatment.out[["data"]]
     
-    #simulate_response_smallmodel <- simulate(smallmodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
     simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
     
-    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel
-                                               #"small_model_reponse"  = simulate_response_smallmodel
-                                               )
-    colnames(refit_data_outcomes) <- c("large_model_response" 
-                                       #"small_model_response"
-                                       )
+    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel)
+    colnames(refit_data_outcomes) <- c("large_model_response")
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
-    #refit_small                   <- lme4::lmer(formula = as.formula(iter_form_sm), 
-     #                                                                data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw")) 
+  
     refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
                                                 data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
-    #iter_kr_ftest                 <- pbkrtest::KRmodcomp(refit_large, refit_small) 
-    #pval                          <- getKR(iter_kr_ftest, "p.value")
+    
     pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
 
     
@@ -1281,7 +1291,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
   envlist    <- mget(ls())
   envlist    <- names(envlist)
   env.append <- c("RandomizeTreatment2","KRmodcomp",
-                  "getKR","lmer","bind_cols","stratified", 
+                  "getKR","lmer","bind_cols","stratified", "sample_n",
                   ".nsiminnerloop", 
                   "CalcProportionPos", 
                   "%notin%")
@@ -1527,10 +1537,7 @@ CalculateSampleAtPower_markdown <- function(data, y=80) {
   return(return.val)
 }
 
-check<-readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13_tplus.rds")
-testdata <- getData(check$largemodel)
-testdata$PTGENDER <- relevel(testdata$PTGENDER, "Male")
-testdata <- testdata[!duplicated(testdata$RID),]
+
 
 DefineMVND <- function(data, n) {
   thresholds <- c()
@@ -1582,21 +1589,17 @@ DefineMVND <- function(data, n) {
 }
 
 
-ExtendLongitudinal <- function(data) {
+ExtendLongitudinal <- function(data, trial_duration) {
+  new_time <- seq(0, trial_duration, by=.5)
   rows <- nrow(data)
-  data <- data %>% slice(rep(1:n(), each=5))
-  rids <- rep(1:rows, 5)
+  data <- data %>% slice(rep(1:n(), each=length(new_time)))
+  rids <- rep(1:rows, length(new_time))
   rids <- rids[order(rids, decreasing = FALSE)]
-  new_time <- rep(seq(0, 2, by=.5), rows)
+  new_time_rows <- rep(new_time, rows)
   data$RID <- factor(rids)
-  data$new_time <- new_time
+  data$new_time <- new_time_rows
   return(data)
 }
-
-
-testmvd <- DefineMVND(testdata, 329)
-
-
 
 
 CompareDistributions <- function(mvnd.out) {
@@ -1616,13 +1619,22 @@ CompareDistributions <- function(mvnd.out) {
   return(dist.test)
 }
 
-check    <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adas13_power_data/earlyadadas13.rds")
-testdata <- getData(check$largemodel)
-testdata$PTGENDER <- relevel(testdata$PTGENDER, "Male")
-testdata <- testdata[!duplicated(testdata$RID),]
-testmvd  <- DefineMVND(testdata, 329)
-testmvdlong <- ExtendLongitudinal(testmvd$simcovs)
-testmvdlong <- StratifyContinuous(testmvdlong, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
-testmvd <- testmvdlong[!duplicated(testmvdlong$RID),]
-check2<-RandomizeTreatment2(testmvd, testmvdlong)
-abs((nrow(testmvd) / 2) - nrow(check2))
+
+OverallvsTau <- function(dpm.list.overall, dpm.list.tau, ylab, ymin, ymax) {
+  keeplist <- list()
+  names.list <- names(dpm.list.overall)
+  for(i in 1:length(dpm.list.overall)) {
+    d1 <- dpm.list.overall[[i]]$data
+    d2 <- dpm.list.tau[[i]]$data
+    d1$`Treatment Definition` <- "Overall Decline"
+    d2$`Treatment Definition` <- "Tau Associated Decline"
+    d <- rbind(d1, d2)
+    d <- subset(d, Treatment==0)
+    gg <- ggplot(d, aes(x=x, y=predicted, fill=`Treatment Definition`)) + geom_point(aes(colour=`Treatment Definition`)) +geom_line(aes(colour=`Treatment Definition`))+ geom_ribbon(aes(ymin=conf.low, ymax=conf.high), stat = "identity",  alpha=.25)
+    gg <- gg + xlab("Time From Baseline (Years)") + ylab(ylab) + ylim(ymin, ymax)
+    gg <- gg +  geom_ribbon(aes(ymin=conf.low, ymax=conf.high), stat = "identity",  alpha=.25)
+    keeplist[[i]] <- gg
+  }
+  names(keeplist) <- names.list
+  return(keeplist)
+}

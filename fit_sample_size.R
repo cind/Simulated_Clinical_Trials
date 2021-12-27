@@ -6,7 +6,11 @@ seq.by                 <- as.numeric(args[4])
 nsim                   <- as.numeric(args[5])
 trial_duration         <- as.numeric(args[6])
 return_file            <- as.character(args[7])
+t1                     <- as.character(args[8])
 
+if(t1 != "TRUE") {
+  t1 <- NULL
+}
 
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/helper_functions.R")
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/email_setup.R")
@@ -22,11 +26,14 @@ source("/Users/adamgabriellang/Desktop/clinical_trial_sim/email_setup.R")
 #                          text = write.email.text.start)
 
 #gm_send_message(email.start)
-
-
-
-models_list <- readRDS(fitted_simulation_list)
-data <- getData(models_list$smallmodel)
+models_list          <- readRDS(fitted_simulation_list)
+data                 <- simr::getData(models_list$smallmodel)
+data$PTGENDER        <- relevel(data$PTGENDER, "Male")
+data                 <- data[!duplicated(data$RID),]
+nsub                 <- seq.b * 3
+data_simulated       <- DefineMVND(data, nsub)
+data_simulated_long  <- ExtendLongitudinal(data_simulated$simcov, trial_duration)
+data_simulated_long  <- StratifyContinuous(data_simulated_long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 
 ss_fitted <- ManualSimulation(formula_largemodel    = models_list$formula_largemodel,
                                  largemodel         = models_list$largemodel,
@@ -34,9 +41,13 @@ ss_fitted <- ManualSimulation(formula_largemodel    = models_list$formula_largem
                                  smallmodel         = models_list$smallmodel,
                                  sample_sizes       = seq(seq.a, seq.b, by=seq.by),
                                  nsim               = nsim,
-                                 data               = data,
-                                 trial_duration     = trial_duration)
+                                 data               = data_simulated_long,
+                                 trial_duration     = trial_duration,
+                                 t1errorsim         = t1)
 
+ss_fitted[["distr_comparison"]] <- data_simulated
+ss_fitted[["t1"]] <- t1
+ss_fitted[["args"]] <- args
 saveRDS(ss_fitted, return_file)
 
 
@@ -47,3 +58,4 @@ saveRDS(ss_fitted, return_file)
 #                          text = write.email.text.end)
 
 #gm_send_message(email.end)
+
