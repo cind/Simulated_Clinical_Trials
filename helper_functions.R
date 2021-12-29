@@ -910,9 +910,9 @@ CalculateSampleAtPowerModel <- function(model.list) {
   modelnames <- (as.numeric(modelnames) / 10)
   init.data$td <- modelnames
   colnames(init.data) <- c("Mean", "CI_high", "CI_low", "Trial Duration (Years)")
-
+  tablecol <- paste(round(init.data$Mean, 1), " (", round(init.data$CI_low, 1), " , ", round(init.data$CI_high, 1), ")", sep="")
   init.data <- init.data[,c("Trial Duration (Years)","Mean", "CI_low", "CI_high")]
-  
+  init.data$tablecol <- tablecol
   return(init.data)
 }
 
@@ -1636,5 +1636,28 @@ OverallvsTau <- function(dpm.list.overall, dpm.list.tau, ylab, ymin, ymax) {
     keeplist[[i]] <- gg
   }
   names(keeplist) <- names.list
+  return(keeplist)
+}
+
+TestMissingness <- function(data, outcome) {
+  data <- split(data, data$RID)
+  keeplist <- list()
+  for(i in 1:length(data)) {
+    subj <- data[[i]]
+    missingrows <- c(0, 0.5, 1, 1.5, 2)[which(c(0, 0.5, 1, 1.5, 2) %notin% subj$new_time)]
+    if(length(missingrows) > 0) {
+      for( j in missingrows) {
+        row1 <- subj[1,]
+        row1[outcome] <- NA
+        row1["new_time"] <- j
+        subj <- rbind(subj, row1)
+      }
+    }
+    keeplist[[i]] <- subj
+  }
+  keeplist <- do.call(rbind, keeplist)
+  keeplist$missing <- NA
+  keeplist["missing"][which(is.na(keeplist[outcome])),] <- 1
+  keeplist["missing"][which(!is.na(keeplist[outcome])),] <- 0
   return(keeplist)
 }
