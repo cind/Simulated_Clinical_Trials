@@ -361,6 +361,7 @@ CombineSimPlots <- function(power.list, limits) {
 QuickAdjust <- function(data) {
   data$RID <- factor(data$RID)
   data <- data[order(data$RID, data$M, decreasing = FALSE),]
+  data <- subset(data, M %notin% c(3))
   data <- TimeSinceBaseline(data, "M")
   data <- subset(data, new_time <= 24)
   data$new_time <- (data$new_time / 12)
@@ -586,11 +587,13 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   } else {
     fixd["new_time:treat1"] <- ((fixd["new_time"] * .5) * -1)
   }
+  fixd.names        <- names(fixd)
   if(length(unique(data$CDGLOBAL_bl)) == 1) {
-  fixd                            <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl",  "new_time:treat1")]
+  fixd.names                            <- fixd.names[!fixd.names=="CDGLOBAL_bl1"]
+  fixd <- fixd[fixd.names]
   } else {
-     fixd                        <- fixd[c( "(Intercept)", "new_time","treat1", "PTEDUCAT_bl", "AGE_bl", "PTGENDERMale", "MMSE_bl", "CDGLOBAL_bl1",  "new_time:treat1")]
-   }
+     fixd                        <- fixd[fixd.names]
+  }
   sigma.mod        <- summary(model)$sigma
   varcor.mod       <- VarCorr(model)
   constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
@@ -850,25 +853,12 @@ feature.correction <- function(training.data,  data, formula, cr.feat1, feat) {
 }
 
 MMRMTime <- function(data) {
-  #data$new_time_mmrm <- NA
-  #data["new_time_mmrm"][which(data$new_time==0), ] <- 1
-  #data["new_time_mmrm"][which(data$new_time==.5), ] <- 2
-  #data["new_time_mmrm"][which(data$new_time==1), ] <- 3
-  #data["new_time_mmrm"][which(data$new_time==1.5), ] <- 4
-  #data["new_time_mmrm"][which(data$new_time==2), ] <- 5
-  new_time_vec <- unique(data$new_time)
-  new_time_vec <- new_time_vec[order(new_time_vec, decreasing = FALSE)]
-  new_time_match <- 1:length(new_time_vec)
-  data$new_time_mmrm <- NA
-  for(i in 1:length(new_time_match)) {
-    data["new_time_mmrm"][which(data$new_time==new_time_vec[i]), ] <- new_time_match[i]
-  }
+  data$new_time_mmrm <- mapvalues(data$new_time, from = c(0, 0.5, 1, 1.5, 2), to=c(1:5))
   drops <- which(duplicated(data[,c("RID", "new_time_mmrm")]) == TRUE)
   data <- data[-drops,]
   data$RID <- factor(data$RID)
   return(data)
 }
-
 
 
 CalculateSampleAtPower <- function(mean.points, conf.low.points, conf.hi.points, y=80) {

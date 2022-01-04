@@ -1,12 +1,12 @@
-adni.fulldata     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/adni_fulldata.csv")
-
+adni.fulldata     <- read.csv("/Users/adamgabriellang/Desktop/clinical_trial_sim/Data/adni_fulldata_new_imaging.csv")
 #seperate dataframes by outcome
 necc.cols.t11     <- c("RID", "M", "ADAS11","CAAPos", "LewyPos", "TDP43Pos")
 necc.cols.t13     <- c("RID", "M", "ADAS13","CAAPos", "LewyPos", "TDP43Pos")
 necc.cols.cdr     <- c("RID", "M", "CDRSB","CAAPos", "LewyPos", "TDP43Pos")
 necc.cols.mmse    <- c("RID", "M", "MMSE","CAAPos", "LewyPos", "TDP43Pos")
 necc.cols.mpacc   <- c("RID", "M", "mPACCtrailsB","CAAPos", "LewyPos", "TDP43Pos")
-necc.cols.image   <- c("RID", "M", "ST29SV_harmonized_icv_adj", "ST88SV_harmonized_icv_adj","CAAPos", "LewyPos", "TDP43Pos")
+#necc.cols.image   <- c("RID", "M", "ST29SV_harmonized_icv_adj", "ST88SV_harmonized_icv_adj","CAAPos", "LewyPos", "TDP43Pos")
+necc.cols.image   <- c("RID", "M", "hipp_average","CAAPos", "LewyPos", "TDP43Pos")
 
 adni.fulldata$RID            <- factor(adni.fulldata$RID)
 adni.fulldata$LewyPos        <- factor(adni.fulldata$LewyPos)
@@ -23,7 +23,6 @@ combined.cdr   <- adni.fulldata[complete.cases(adni.fulldata[,necc.cols.cdr]),]
 combined.mmse  <- adni.fulldata[complete.cases(adni.fulldata[,necc.cols.mmse]),]
 combined.mpacc <- adni.fulldata[complete.cases(adni.fulldata[,necc.cols.mpacc]),]
 combined.image <- adni.fulldata[complete.cases(adni.fulldata[,necc.cols.image]),]
-
 full.data.list <- list("ADAS11"      = combined.11,
                        "ADAS13"      = combined.13,
                        "CDRSB"       = combined.cdr,
@@ -69,10 +68,13 @@ ad.scen1.generic.long.tplus        <- purrr::map2(ad.scen1.generic.tplus, full.d
 ad.scen1.earlyage.long             <- purrr::map2(ad.scen1.earlyage, full.data.list, PullLongData)
 ad.scen1.nopath.tplus.long         <- purrr::map2(ad.scen1.nopath.tplus, full.data.list, PullLongData)
 
+
+
+
 if(FALSE) {
-saveRDS(list("cs" = early.ad.scen1.generic,       "long" = early.ad.scen1.generic.long),       "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts.rds")
-saveRDS(list("cs" = early.ad.scen1.generic.tplus, "long" = early.ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_tplus.rds")
-saveRDS(list("cs" = early.ad.scen1.nopath.tplus,  "long" = early.ad.scen1.nopath.tplus.long),  "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_neuroenriched_tplus.rds")
+saveRDS(list("cs" = early.ad.scen1.generic,       "long" = early.ad.scen1.generic.long),       "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_new.rds")
+saveRDS(list("cs" = early.ad.scen1.generic.tplus, "long" = early.ad.scen1.generic.long.tplus), "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_tplus_new.rds")
+saveRDS(list("cs" = early.ad.scen1.nopath.tplus,  "long" = early.ad.scen1.nopath.tplus.long),  "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_neuroenriched_tplus_new.rds")
 }
 
 saveRDS(list("cs" = ad.scen1.generic,       "long" = ad.scen1.generic.long),       "/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/adcohorts.rds")

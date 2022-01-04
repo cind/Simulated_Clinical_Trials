@@ -1,8 +1,8 @@
 save.rds <- FALSE
 
-earlyadcohorts                     <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts.rds")
-earlyadcohorts.tplus               <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_tplus.rds")
-earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_neuroenriched_tplus.rds")
+earlyadcohorts                     <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_new.rds")
+earlyadcohorts.tplus               <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_tplus_new.rds")
+earlyadcohorts.neuroenriched.tplus <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_sim/adni_full_enriched/earlyadcohorts_neuroenriched_tplus_new.rds")
 
 #keeping subjects with 3 or more time points
 #update descriptive statistics and a few plots in powerpoint as this will remove a few subjects
@@ -30,23 +30,23 @@ long.earlyad.neuroenriched.tplus.adas13  <-  earlyadcohorts.neuroenriched.tplus$
 cs.earlyad.hipp    <- earlyadcohorts$cs$Imaging
 long.earlyad.hipp  <-  earlyadcohorts$long$Imaging
 
-cs.earlyad.hipp$hipp_average    <- (cs.earlyad.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
-long.earlyad.hipp$hipp_average  <- (long.earlyad.hipp$ST29SV_harmonized_icv_adj + long.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#cs.earlyad.hipp$hipp_average    <- (cs.earlyad.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#long.earlyad.hipp$hipp_average  <- (long.earlyad.hipp$ST29SV_harmonized_icv_adj + long.earlyad.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
 #Tau+
 cs.earlyad.tplus.hipp           <- earlyadcohorts.tplus$cs$Imaging
 long.earlyad.tplus.hipp         <-  earlyadcohorts.tplus$long$Imaging
 
 
-cs.earlyad.tplus.hipp$hipp_average   <- (cs.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
-long.earlyad.tplus.hipp$hipp_average <- (long.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#cs.earlyad.tplus.hipp$hipp_average   <- (cs.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#long.earlyad.tplus.hipp$hipp_average <- (long.earlyad.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
 # Neuroenriched Tau+
 cs.earlyad.neuroenriched.tplus.hipp    <- earlyadcohorts.neuroenriched.tplus$cs$Imaging
 long.earlyad.neuroenriched.tplus.hipp <-  earlyadcohorts.neuroenriched.tplus$long$Imaging
 
-cs.earlyad.neuroenriched.tplus.hipp$hipp_average   <- (cs.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
-long.earlyad.neuroenriched.tplus.hipp$hipp_average <- (long.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#cs.earlyad.neuroenriched.tplus.hipp$hipp_average   <- (cs.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + cs.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
+#long.earlyad.neuroenriched.tplus.hipp$hipp_average <- (long.earlyad.neuroenriched.tplus.hipp$ST29SV_harmonized_icv_adj + long.earlyad.neuroenriched.tplus.hipp$ST88SV_harmonized_icv_adj) / 2 #Average of left and right
 
 
 
@@ -84,9 +84,7 @@ colnames(earlyad.adas13.desc)     <- c("Diagnosis", "Age (Baseline)", "Gender",
 
 earlyad.adas13.desc <- table1(earlyad.adas13.desc)
 earlyad.adas13.desc <- earlyad.adas13.desc$Table1
-View(earlyad.adas13.desc)
 earlyad.adas13.desc <- earlyad.adas13.desc[c(1, 6:9, 11:nrow(earlyad.adas13.desc)),]
-
 
 #Enriched for TAU
 earlyad.tplus.adas13.desc <- cs.earlyad.tplus.adas13[,c("DX_bl", "AGE_bl", "PTGENDER", 
@@ -145,7 +143,6 @@ colnames(earlyad.hipp.desc)   <- c("Diagnosis", "Age (Baseline)", "Gender",
 earlyad.hipp.desc <- table1(earlyad.hipp.desc, splitby = ~ Diagnosis)
 earlyad.hipp.desc <- earlyad.hipp.desc$Table1
 earlyad.hipp.desc <- earlyad.hipp.desc[c(1, 6:9, 11:nrow(earlyad.hipp.desc)),]
-
 
 #Enriched for TAU
 earlyad.tplus.hipp.desc <- cs.earlyad.tplus.hipp[,c("DX_bl", "AGE_bl", "PTGENDER", 
@@ -287,10 +284,6 @@ mmrm.earlyad.neuroenriched.tplus.adas13<- gls(ADAS13~factor(new_time_mmrm),
 mmrm.earlyad.hipp   <- gls(hipp_average~factor(new_time_mmrm),
                            na.action=na.omit, data=long.earlyad.hipp,
                            correlation=nlme::corSymm(form=~new_time_mmrm|RID),
-                           weights=nlme::varIdent(form=~1|new_time_mmrm))
-mmrm.earlyad.hipp.test   <- gls(hipp_average~factor(new_time_mmrm),
-                           na.action=na.omit, data=long.earlyad.hipp,
-                           correlation=nlme::corSymm(form=~1|RID),
                            weights=nlme::varIdent(form=~1|new_time_mmrm))
 
 
@@ -505,9 +498,7 @@ earlyad.adas13.plotting.data <- rbind(earlyad.adas13.plotting.data,
                                       earlyad.neuroenriched.tplus.adas13.plotting.data)
 earlyad.adas13.mmrm.plot <- ggplot(earlyad.adas13.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
 earlyad.adas13.mmrm.plot <- earlyad.adas13.mmrm.plot + xlab("Time (Years)") + ylab("Mean ADAS-13 (95% CI)") + ylim(20, 40)
-tiff('mpaccmrmm.tiff', units="in", width=6, height=3, res=500)
-earlyad.mpacc.mmrm.plot
-dev.off()
+
 ######################## HIPPOCAMPUS ######################## 
 earlyad.hipp.plotting.data <- rbind(earlyad.hipp.plotting.data,
                                     earlyad.tplus.hipp.plotting.data,
@@ -521,7 +512,6 @@ earlyad.mpacc.plotting.data <- rbind(earlyad.mpacc.plotting.data,
                                      earlyad.neuroenriched.tplus.mpacc.plotting.data)
 earlyad.mpacc.mmrm.plot <- ggplot(earlyad.mpacc.plotting.data, aes(x=time, y=means, colour=Enrichment)) + geom_point() +  geom_errorbar(aes(ymin=ci_low, ymax=ci_hi)) + geom_line()
 earlyad.mpacc.mmrm.plot <- earlyad.mpacc.mmrm.plot + xlab("Time (Years)") + ylab("Mean mPACCtrailsB (95% CI)") 
-
 
 ######################## ADAS13 ######################## 
 
@@ -571,21 +561,21 @@ long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.
 
 ######################## ADAS13 ######################## 
 
-formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (1 + new_time|RID)"
 long.earlyad.adas13_with_treatment                     <- StratifyContinuous(long.earlyad.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.tplus.adas13_with_treatment               <- StratifyContinuous(long.earlyad.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.adas13_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 
 model.earlyad.adas13.rs                     <- MapLmer(newdata = long.earlyad.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
-
 model.earlyad.tplus.adas13.rs               <- MapLmer(newdata = long.earlyad.tplus.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
 model.earlyad.neuroenriched.tplus.adas13.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
 
-formula.earlyad.adas13.simulation.rs                   <- "ADAS13 ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.adas13.simulation.rs                   <- "ADAS13 ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl +ADAS13_bl+ (1 + new_time|RID)"
 simulation.model.earlyad.adas13.rs                     <- BuildSimulationModelNoPath(model.earlyad.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.adas13_with_treatment, "not-controlled")
+summary(simulation.model.earlyad.adas13.rs)
 simulation.model.earlyad.tplus.adas13.rs               <- BuildSimulationModelNoPath(model.earlyad.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.tplus.adas13_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.tplus.adas13.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.neuroenriched.tplus.adas13_with_treatment, "not-controlled")
 
@@ -596,7 +586,6 @@ relcontr.earlyad.neuroenriched.tplus.adas13        <- GetRelContributions(model.
 
 relcontrcount.earlyad.adas13        <- BuildNeuroCountPlot(relcontr.earlyad.adas13)
 relcontrcount.earlyad.tplus.adas13  <- BuildNeuroCountPlot(relcontr.earlyad.tplus.adas13)
-
 
 
 
