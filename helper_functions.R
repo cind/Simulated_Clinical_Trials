@@ -577,7 +577,6 @@ BuildSimulationModel <- function(list, formula.model, data, treatment.effect, es
 
 BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effect) {
   model            <- list
-  #adjusted.decline <- list[[2]]
   fixd             <- fixef(model)
   fixd["treat1"]   <- 0
   if(treatment.effect =="controlled") {
@@ -594,9 +593,10 @@ BuildSimulationModelNoPath <- function(list, formula.model, data, treatment.effe
   } else {
      fixd                        <- fixd[fixd.names]
   }
+  fixd <- fixd[c(1,2, 9, 3,4,5,6,7,8,10)]
   sigma.mod        <- summary(model)$sigma
-  varcor.mod       <- VarCorr(model)
-  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma = sigma.mod, data = data)
+  varcor.mod       <- lme4::VarCorr(model, sigma=as.numeric(sigma.mod))
+  constr.lme       <- makeLmer(formula = as.formula(formula.model), fixef = fixd, VarCorr=varcor.mod, sigma=as.numeric(sigma.mod), data = data)
   return(constr.lme)
 }
 
@@ -689,9 +689,9 @@ ZscoreAdj <- function(data, col_names, control.data) {
 }
 
 
-RandomizeTreatment2 <- function(data, longdata, no.prop=NULL) {
+RandomizeTreatment2 <- function(longdata, no.prop=NULL) {
   `%notin%`  <- Negate(`%in%`)
-  stratifydf <- data
+  stratifydf <- longdata[!duplicated(longdata$RID),]
   stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
                                      stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
   stratifydf$stratvar   <- factor(stratifydf$stratvar)
@@ -736,12 +736,10 @@ CalcProportionPos <- function(data, keepcols = c("CAAPos", "LewyPos", "TDP43Pos"
                                                  "PTEDUCAT_bl_strat","MMSE_bl_strat", "CDGLOBAL_bl", "TauPos_bl")) {
   data <- as.data.frame(data)
   data <- data[,keepcols]
-  prop <- Map(function(x) {table(x)/sum(table(x))}, data)
-  prop <- lapply(prop, `[`, 1)
-  prop <- unlist(prop)
+  data$PTGENDER <- mapvalues(data$PTGENDER, from=c("Male", "Female"), to=c(1, 0))
+  prop <- Map(function(x) {list(length(which(x==1)), length(x))}, data)
   return(prop)
 }
-
 
 
 RandomizeTreatment2NoPath <- function(data, stratcolumns, longdata) {
@@ -760,16 +758,7 @@ RandomizeTreatment2NoPath <- function(data, stratcolumns, longdata) {
 }
 
 
-StratifyContVar <- function(data, stratcols) {
-  for(i in stratcols) {
-    var <- data[,i]
-    qt <- quantile(var)
-    groupingvar <- cut(var, breaks = c(-Inf, unname(qt[3]), Inf), labels=c(0, 1))
-    stratname <- paste(i, "_strat", sep="")
-    data[stratname] <- factor(as.character(groupingvar))
-  }
-  return(data)
-}
+
 
 
 MapLmer <- function(newdata, formula.model) {
@@ -1138,6 +1127,18 @@ CombineIters<- function(list, rows) {
 
 
 StratifyContinuous <- function(longdata, stratcols) {
+  
+  StratifyContVar <- function(data, stratcols) {
+    for(i in stratcols) {
+      var <- data[,i]
+      qt <- quantile(var)
+      groupingvar <- cut(var, breaks = c(-Inf, unname(qt[3]), Inf), labels=c(0, 1))
+      stratname <- paste(i, "_strat", sep="")
+      data[stratname] <- factor(as.character(groupingvar))
+    }
+    return(data)
+  }
+  
   bline      <- longdata[!duplicated(longdata$RID),]
   bline      <- StratifyContVar(bline, stratcols = stratcols)
   post.strat <- paste(stratcols, "_strat", sep="")
@@ -1152,33 +1153,18 @@ BalanceDiagnostics <- function(outer) {
   return(prop_test_frame)
 }
 
-PropTestIter <- function(outer_sublist) {
-  tr <- outer_sublist$Treatment
-  pl <- outer_sublist$Placebo
-  ss <- outer_sublist$sample_size
-  rnames <- rownames(tr)
-  init_df <- data.frame(matrix(nrow = dim(tr)[1]))  
-  if(!all(dim(tr) == dim(pl))) {
-    stop("Dataframe dimensions are not identical")
+PropTestIter <- function(covariate.props) {
+  tr <- covariate.props$Treatment
+  pl <- covariate.props$Placebo
+  init.vec <- c()
+  for(i in 1:length(tr)) {
+    p.val <- prop.test(x=c(tr[[i]][[1]], pl[[i]][[1]]), n=c(tr[[i]][[2]], pl[[i]][[2]]))$p.value
+    init.vec <- append(init.vec, p.val)
   }
-  for(i in 1:ncol(tr)) {
-    col_tr    <- tr[,i]
-    col_pl    <- pl[,i]
-    col.tests <- c()
-    for(j in 1:nrow(tr)) {
-      cell_tr <- col_tr[[j]]
-      cell_pl <- col_pl[[j]]
-      test    <- prop.test(c(round(cell_tr*ss), 
-                             round(cell_pl*ss)), 
-                             c(ss, ss))$p.value
-      col.tests <- append(col.tests, test)
-    }
-    init_df <- cbind(init_df, col.tests)
-  }
-  init_df[,1] <- NULL
-  rownames(init_df) <- rnames
-  return(init_df)
+  names(init.vec) <- names(tr)
+  return(init.vec)
 }
+
 
 
 TrPlMeanCI <- function(outer_list) {
@@ -1218,110 +1204,6 @@ MeanCICovars <- function(outer) {
   return(returnlist)
 }
 
-ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL, t1errorsim) {
-  # load in functions from GlobalEnv into current enviornment for clusterExport
-  force(RandomizeTreatment2)
-  force(pbkrtest::KRmodcomp)
-  force(pbkrtest::getKR)
-  force(lme4::lmer)
-  force(lme4::lmerControl)
-  force(dfoptim::nmkb)
-  force(dplyr::bind_cols)
-  force(splitstackshape::stratified)
-  force(CalcProportionPos)
-  force(`%notin%`)
-  force(setTxtProgressBar)
-  force(lmerTest::as_lmerModLmerTest)
-  force(dplyr::sample_n)
-  opts <- list(chunkSize=10)
-  #################
-  cat("Beginning simulation")
-  cat("\n")
-  init_iter_list                      <-  list()
-  init_significance_list              <-  list()
-  init_props_list_treatment           <-  list()
-  init_props_list_placebo             <-  list()
-  data_extended <- data
-  form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
-  iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
-  levels_extended <- unique(data_extended$RID)
-  if(!is.null(t1errorsim)) {
-    fixef(largemodel)["new_time:treat1"] <- 0
-  }
-  #define inner loop for parallelization
-    .nsiminnerloop <- function(j) {
-    cat("\r", j, " out of ", nsim, " complete", sep = "")
-    sample.levels            <-  sample(levels_extended, size = i * 2)
-    data_sample              <-  subset(data_extended, RID %in% sample.levels)
-    sample_baseline          <-  data_sample[!duplicated(data_sample$RID), ]
-    
-    #split into treatment and placebo groups while balancing subjects
-    treatment.out            <-  RandomizeTreatment2(sample_baseline, data_sample)
-    prop                     <-  treatment.out[["props"]]
-    data_sample_treated      <-  treatment.out[["data"]]
-    
-    simulate_response_largemodel <- simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
-    
-    refit_data_outcomes          <- data.frame("large_model_response" = simulate_response_largemodel)
-    colnames(refit_data_outcomes) <- c("large_model_response")
-    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated) 
-  
-    refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
-                                                data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
-    
-    pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
-
-    
-    
-    return(list("pval"      = pval,
-                "Treatment" = prop[["Treatment"]],
-                "Placebo"   = prop[["Placebo"]]))
-  }
-  pb <- txtProgressBar(min = 1, max=nsim, style = 1)
-  envlist    <- mget(ls())
-  envlist    <- names(envlist)
-  env.append <- c("RandomizeTreatment2","KRmodcomp",
-                  "getKR","lmer","bind_cols","stratified", "sample_n",
-                  ".nsiminnerloop", 
-                  "CalcProportionPos", 
-                  "%notin%")
-  
-  #create cluster
-  cl <- makeCluster(1, outfile="")
-  doSNOW::registerDoSNOW(cl)
-  envlist <- append(envlist, env.append)
-  clusterExport(cl, envlist, envir = environment())
-  t1 <- Sys.time()
-  outer <- foreach(i = sample_sizes, .options.nws=opts) %:%
-            foreach(j = 1:nsim, .combine='c', .inorder=FALSE) %dopar% {
-              setTxtProgressBar(pb, j)
-              .nsiminnerloop(j)
-            }
-  t2     <- Sys.time()
-  stopCluster(cl)
-  names(outer) <- paste("SS_", sample_sizes, sep="")
-  outer        <- Map(CombineOutcomes, outer)
-  for(i in 1:length(outer)) {
-   outer[[i]][["sample_size"]] <- sample_sizes[i]
-  }
-  ftestdf                 <- CombineIters(outer, nsim)
-  successes               <- CalcSuccesses(outer, nsim) 
-  conf.inter              <- GetConfInt(successes)
-  balance.cov.diagnostics <- BalanceDiagnostics(outer)
-  mean_cis_covariates     <- MeanCICovars(outer)
-  timerun <- difftime(t2, t1, units = "mins")
-  return(list("Successes"   = successes, 
-              "power.data"  = conf.inter, 
-              "cov.balance" = outer,
-              "mean_cis_covariate" = mean_cis_covariates,
-              "prop.tests"  = balance.cov.diagnostics,
-              "time_to_run" = timerun,
-              "ftestdf" = ftestdf))
-}
-
-
-
-
 
 CombineSimPlots_ManualSimulation <- function(simlist, limits) {
   nonenrich <- simlist[[1]] 
@@ -1338,7 +1220,7 @@ CombineSimPlots_ManualSimulation <- function(simlist, limits) {
     enriched$nlevels <- limits
     plot.df <- rbind(plot.df, enriched)
   }
-  gplot.sim <- ggplot(data = plot.df, aes(x=nlevels, y=mean * 100, colour=Group)) +geom_errorbar(aes(ymin=ci.low * 100, ymax=ci.high * 100)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
+  gplot.sim <- ggplot(data = plot.df, aes(x=nlevels, y=mean * 100, colour=Group)) + geom_errorbar(aes(ymin=ci.low * 100, ymax=ci.high * 100)) + geom_line() + geom_point() + scale_x_discrete(limits=limits)
   gplot.sim <- gplot.sim + xlab("Sample Size per Arm") + ylab("Statistical Power (%)") +ylim(0, 100) + geom_hline(yintercept = 80, linetype="dashed")
   return(list("plot" = gplot.sim, "fullstats" = plot.df))
 } 
@@ -1488,33 +1370,6 @@ Cal <- function(mean.points) {
 }
 
 
-
-props.covs <- function(list) {
-  if(length(list)==2) {
-    cutoff <- c(list[1] / (list[1] + list[2]))
-  }
-   else if(length(list)==3) {
-    cutoff <- c((list[1] / (list[1] + list[2] + list[3])), (list[2] / (list[1] + list[2] + list[3])))
-  } else {
-    cutoff <- NULL
-  }
-  return(cutoff)
-}
-
-
-CalcCutoff <- function(mean, sd, pi) {
-  return.vec <- c()
-  for(i in 1:length(pi)) {
-    pi.i <- pi[[i]]
-    cutoff <- mean + (sd * qnorm(pi.i))
-    cutoff <- exp(cutoff)
-    return.vec <- append(return.vec,cutoff)
-  }
-  return(return.vec)
-}
-
-
-
 CalculateSampleAtPower_markdown <- function(data, y=80) {
   lowerval <- max(which(data$mean < .8))
   upperval <- min(which(data$mean >= .8))
@@ -1530,6 +1385,31 @@ CalculateSampleAtPower_markdown <- function(data, y=80) {
 
 
 DefineMVND <- function(data, n) {
+  
+  props.covs <- function(list) {
+    if(length(list)==2) {
+      cutoff <- c(list[1] / (list[1] + list[2]))
+    }
+    else if(length(list)==3) {
+      cutoff <- c((list[1] / (list[1] + list[2] + list[3])), (list[2] / (list[1] + list[2] + list[3])))
+    } else {
+      cutoff <- NULL
+    }
+    return(cutoff)
+  }
+  
+  CalcCutoff <- function(mean, sd, pi) {
+    return.vec <- c()
+    for(i in 1:length(pi)) {
+      pi.i <- pi[[i]]
+      cutoff <- mean + (sd * qnorm(pi.i))
+      cutoff <- exp(cutoff)
+      return.vec <- append(return.vec,cutoff)
+    }
+    return(return.vec)
+  }
+  
+  
   thresholds <- c()
   data <- data[,c("PTEDUCAT_bl",  "AGE_bl", "PTGENDER", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")]
   names.vec <- c("PTGENDER", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")
@@ -1574,8 +1454,8 @@ DefineMVND <- function(data, n) {
       simcovs[i][which(simcovs[i]  > threshold[2]),] <- levels.i[3]
      }
     }
-  }
-  return(list("cov.b4" = data, "simcovs"=simcovs))
+   }
+  return(simcovs)
 }
 
 

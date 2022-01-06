@@ -517,7 +517,7 @@ earlyad.mpacc.mmrm.plot <- earlyad.mpacc.mmrm.plot + xlab("Time (Years)") + ylab
 
 # No Enrichment/Overall Decline
 # Categorize continuous variables for block randomization
-cs.earlyad.adas13 <- StratifyContVar(cs.earlyad.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
+long.earlyad.adas13_with_treatment <- StratifyContVar(long.earlyad.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.tplus.adas13 <- StratifyContVar(cs.earlyad.tplus.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 cs.earlyad.neuroenriched.tplus.adas13 <- StratifyContVar(cs.earlyad.neuroenriched.tplus.adas13, stratcols = c("PTEDUCAT_bl", "AGE_bl", "MMSE_bl"))
 
@@ -525,9 +525,14 @@ cs.earlyad.neuroenriched.tplus.adas13 <- StratifyContVar(cs.earlyad.neuroenriche
 
 
 #Assign treatment and placebo by blocks
-long.earlyad.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.adas13, long.earlyad.adas13, no.prop = TRUE)
+long.earlyad.adas13_with_treatment <- RandomizeTreatment2(long.earlyad.adas13_with_treatment)
 long.earlyad.tplus.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.tplus.adas13, long.earlyad.tplus.adas13, no.prop = TRUE)
 long.earlyad.neuroenriched.tplus.adas13_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.tplus.adas13, long.earlyad.neuroenriched.tplus.adas13, no.prop = TRUE)
+
+
+
+
+
 
 ######################## HIPPOCAMPUS ######################## 
 
@@ -553,7 +558,7 @@ cs.earlyad.neuroenriched.tplus.mpacc <- StratifyContVar(cs.earlyad.neuroenriched
 
 
 #Assign treatment and placebo by blocks
-long.earlyad.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.mpacc, long.earlyad.mpacc, no.prop = TRUE)
+long.earlyad.mpacc_with_treatment <- RandomizeTreatment2(long.earlyad.mpacc, no.prop = TRUE)
 long.earlyad.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.tplus.mpacc, long.earlyad.tplus.mpacc, no.prop = TRUE)
 long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.earlyad.neuroenriched.tplus.mpacc, long.earlyad.neuroenriched.tplus.mpacc, no.prop = TRUE)
 
@@ -562,7 +567,10 @@ long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.
 ######################## ADAS13 ######################## 
 
 formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (1 + new_time|RID)"
-long.earlyad.adas13_with_treatment                     <- StratifyContinuous(long.earlyad.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+long.earlyad.adas13_with_treatment                     <- StratifyContinuous(long.earlyad.adas13, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+long.earlyad.adas13_with_treatment                     <- RandomizeTreatment2(long.earlyad.adas13_with_treatment.pr)
+checkprops <- PropTestIter(long.earlyad.adas13_with_treatment$props)
+
 long.earlyad.tplus.adas13_with_treatment               <- StratifyContinuous(long.earlyad.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.adas13_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 
@@ -573,12 +581,10 @@ model.earlyad.tplus.adas13.rs               <- MapLmer(newdata = long.earlyad.tp
 model.earlyad.neuroenriched.tplus.adas13.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
 
-formula.earlyad.adas13.simulation.rs                   <- "ADAS13 ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl +ADAS13_bl+ (1 + new_time|RID)"
+formula.earlyad.adas13.simulation.rs                   <- "ADAS13 ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (1 + new_time|RID)"
 simulation.model.earlyad.adas13.rs                     <- BuildSimulationModelNoPath(model.earlyad.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.adas13_with_treatment, "not-controlled")
-summary(simulation.model.earlyad.adas13.rs)
 simulation.model.earlyad.tplus.adas13.rs               <- BuildSimulationModelNoPath(model.earlyad.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.tplus.adas13_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.tplus.adas13.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.adas13.rs, formula.earlyad.adas13.simulation.rs, long.earlyad.neuroenriched.tplus.adas13_with_treatment, "not-controlled")
-
 relcontr.earlyad.adas13                            <- GetRelContributions(model.earlyad.adas13.rs, long.earlyad.adas13_with_treatment)
 relcontr.earlyad.tplus.adas13                      <- GetRelContributions(model.earlyad.tplus.adas13.rs, long.earlyad.tplus.adas13_with_treatment)
 relcontr.earlyad.neuroenriched.tplus.adas13        <- GetRelContributions(model.earlyad.neuroenriched.tplus.adas13.rs, long.earlyad.neuroenriched.tplus.adas13_with_treatment)
@@ -624,14 +630,11 @@ dpms.earlyad.adas13.tau <- DPMPlots(list("No Enrichment" = plotting.simulation.m
 
 
 adas.overall.vs.tau <- OverallvsTau(dpms.earlyad.adas13, dpms.earlyad.adas13.tau, ylab = "ADAS13", ymin = 19, ymax =33.5)
-tiff('adastplussdpm.tiff', units="in", width=7, height=3, res=400)
-adas.overall.vs.tau[[2]]
-dev.off()
 ######################## Hippcampus ######################## 
 
 
 
-formula.earlyad.hipp.rs                              <- "hipp_average~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.hipp.rs                              <- "hipp_average~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + hipp_average_bl+ (1 + new_time|RID)"
 long.earlyad.hipp_with_treatment                     <- StratifyContinuous(long.earlyad.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.tplus.hipp_with_treatment               <- StratifyContinuous(long.earlyad.tplus.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.hipp_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.hipp_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
@@ -645,7 +648,7 @@ model.earlyad.tplus.hipp.rs               <- MapLmer(newdata = long.earlyad.tplu
 model.earlyad.neuroenriched.tplus.hipp.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.hipp_with_treatment,
                                                        formula.model = formula.earlyad.hipp.rs)
 
-formula.earlyad.hipp.simulation.rs                   <- "hipp_average ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.hipp.simulation.rs                   <- "hipp_average ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl +hipp_average_bl+ (1 + new_time|RID)"
 simulation.model.earlyad.hipp.rs                     <- BuildSimulationModelNoPath(model.earlyad.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.hipp_with_treatment, "not-controlled")
 simulation.model.earlyad.tplus.hipp.rs               <- BuildSimulationModelNoPath(model.earlyad.tplus.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.tplus.hipp_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.tplus.hipp.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.hipp.rs, formula.earlyad.hipp.simulation.rs, long.earlyad.neuroenriched.tplus.hipp_with_treatment, "not-controlled")
@@ -695,7 +698,7 @@ tiff('hipptplussdpm.tiff', units="in", width=7, height=3, res=400)
 hipp.overall.vs.tau[[2]]
 dev.off()
 ######################## mPACCtrailsB ######################## 
-formula.earlyad.mpacc.rs                              <- "mPACCtrailsB~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.mpacc.rs                              <- "mPACCtrailsB~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl +mPACCtrailsB_bl+ (1 + new_time|RID)"
 long.earlyad.mpacc_with_treatment                     <- StratifyContinuous(long.earlyad.mpacc_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.tplus.mpacc_with_treatment               <- StratifyContinuous(long.earlyad.tplus.mpacc_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.mpacc_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
@@ -709,7 +712,7 @@ model.earlyad.tplus.mpacc.rs               <- MapLmer(newdata = long.earlyad.tpl
 model.earlyad.neuroenriched.tplus.mpacc.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.mpacc_with_treatment,
                                                      formula.model = formula.earlyad.mpacc.rs)
 
-formula.earlyad.mpacc.simulation.rs                   <- "mPACCtrailsB ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + (1 + new_time|RID)"
+formula.earlyad.mpacc.simulation.rs                   <- "mPACCtrailsB ~ new_time*treat + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl +mPACCtrailsB_bl+ (1 + new_time|RID)"
 simulation.model.earlyad.mpacc.rs                     <- BuildSimulationModelNoPath(model.earlyad.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.mpacc_with_treatment, "not-controlled")
 simulation.model.earlyad.tplus.mpacc.rs               <- BuildSimulationModelNoPath(model.earlyad.tplus.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.tplus.mpacc_with_treatment, "not-controlled")
 simulation.model.earlyad.neuroenriched.tplus.mpacc.rs <- BuildSimulationModelNoPath(model.earlyad.neuroenriched.tplus.mpacc.rs, formula.earlyad.mpacc.simulation.rs, long.earlyad.neuroenriched.tplus.mpacc_with_treatment, "not-controlled")

@@ -30,18 +30,13 @@ models_list          <- readRDS(fitted_simulation_list)
 data                 <- simr::getData(models_list$smallmodel)
 data$PTGENDER        <- relevel(data$PTGENDER, "Male")
 data                 <- data[!duplicated(data$RID),]
-nsub                 <- seq.b * 3
-data_simulated       <- DefineMVND(data, nsub)
-data_simulated_long  <- ExtendLongitudinal(data_simulated$simcov, trial_duration)
-data_simulated_long  <- StratifyContinuous(data_simulated_long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
-
 ss_fitted <- ManualSimulation(formula_largemodel    = models_list$formula_largemodel,
                                  largemodel         = models_list$largemodel,
                                  formula_smallmodel = models_list$formula_smallmodel,
                                  smallmodel         = models_list$smallmodel,
                                  sample_sizes       = seq(seq.a, seq.b, by=seq.by),
                                  nsim               = nsim,
-                                 data               = data_simulated_long,
+                                 data               = data,
                                  trial_duration     = trial_duration,
                                  t1errorsim         = t1)
 
