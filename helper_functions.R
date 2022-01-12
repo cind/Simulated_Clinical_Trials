@@ -22,6 +22,8 @@ library(pbkrtest)
 library(foreach)
 library(parallel)
 library(doParallel)
+library(cramer)
+
 `%notin%` <- Negate(`%in%`)
 
 MergeSubjectTime <- function(df1, df2, mergecol, timecol1, timecol2) {
@@ -692,18 +694,20 @@ ZscoreAdj <- function(data, col_names, control.data) {
 RandomizeTreatment2 <- function(longdata, no.prop=NULL) {
   `%notin%`  <- Negate(`%in%`)
   stratifydf <- longdata[!duplicated(longdata$RID),]
-  stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
-                                     stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
+  stratifydf$stratvar   <- interaction(stratifydf$CAAPos, stratifydf$LewyPos, 
+                                       stratifydf$TDP43Pos, stratifydf$PTGENDER, stratifydf$AGE_bl_strat,
+                                     stratifydf$PTEDUCAT_bl_strat,stratifydf$MMSE_bl_strat, 
+                                     stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
   stratifydf$stratvar   <- factor(stratifydf$stratvar)
   stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = FALSE)
   rownames(stratifieddata) <- 1:nrow(stratifieddata)
-  half <- round(nrow(data) / 2)
+  half <- round(nrow(stratifydf) / 2)
   diff <- half - nrow(stratifieddata)
   if(diff > 0) {
-    disjoint <- subset(stratifydf, RID %notin% stratifieddata$RID)
-    add.rows <- sample_n(disjoint, diff)
-    stratifieddata <- rbind(stratifieddata, add.rows)
-    placebo        <-  subset(stratifydf, RID %notin% stratifieddata$RID)
+    disjoint         <- subset(stratifydf, RID %notin% stratifieddata$RID)
+    add.rows         <- sample_n(disjoint, diff)
+    stratifieddata   <- rbind(stratifieddata, add.rows)
+    placebo          <-  subset(stratifydf, RID %notin% stratifieddata$RID)
   } else if(diff < 0)  {
     drop.rows <- sample(1:nrow(stratifieddata), abs(diff))
     stratifieddata <- stratifieddata[-drop.rows,]
@@ -714,12 +718,11 @@ RandomizeTreatment2 <- function(longdata, no.prop=NULL) {
   stratifieddata <- list(stratifieddata, placebo)
   names(stratifieddata) <- c("Treatment", "Placebo")
   get.props             <- Map(CalcProportionPos, stratifieddata)
-  treatmentrids         <- stratifieddata[[1]]
-  treatmentrids         <- unique(treatmentrids$RID)
-  controlrids           <- data["RID"][which(data$RID %notin% treatmentrids),]
-  treatmentrows         <- subset(longdata, RID %in% treatmentrids)
+  treat.rids <- unique(stratifieddata$Treatment$RID)
+  control.rids <- unique(stratifieddata$Placebo$RID)
+  treatmentrows         <- subset(longdata, RID %in% treat.rids)
   treatmentrows$treat   <- rep(1, nrow(treatmentrows))
-  controlrows           <- subset(longdata, RID %in% controlrids)
+  controlrows           <- subset(longdata, RID %in% control.rids)
   controlrows$treat     <- rep(0, nrow(controlrows))
   returndata            <- rbind(treatmentrows, controlrows)
   returndata$treat      <- factor(returndata$treat)
@@ -736,7 +739,13 @@ CalcProportionPos <- function(data, keepcols = c("CAAPos", "LewyPos", "TDP43Pos"
                                                  "PTEDUCAT_bl_strat","MMSE_bl_strat", "CDGLOBAL_bl", "TauPos_bl")) {
   data <- as.data.frame(data)
   data <- data[,keepcols]
-  data$PTGENDER <- mapvalues(data$PTGENDER, from=c("Male", "Female"), to=c(1, 0))
+  if("Male" %notin% data$PTGENDER) {
+    data$PTGENDER <- mapvalues(data$PTGENDER, from=c("Male"), to=c(0))
+  } else if("Female" %notin% data$PTGENDER) {
+  data$PTGENDER <- mapvalues(data$PTGENDER, from=c("Female"), to=c(1))
+} else {
+  data$PTGENDER <- mapvalues(data$PTGENDER, from=c("Male", "Female"), to=c(0, 1))
+  }
   prop <- Map(function(x) {list(length(which(x==1)), length(x))}, data)
   return(prop)
 }
@@ -866,18 +875,19 @@ CalculateSampleAtPower <- function(mean.points, conf.low.points, conf.hi.points,
 }
 
 CalculateSampleAtPowerModel <- function(model.list) {
-  init.data <- data.frame(matrix(ncol = 3))
+  init.data <- data.frame(matrix(ncol = 4))
   modelnames <- names(model.list)
   for(i in 1:length(model.list)) {
   model_unenriched <- model.list[[i]]
   model_unenriched_powerdata <- try(model_unenriched$power.data)
-  model_unenriched_powerdata$ss <- as.numeric(sapply(strsplit(rownames(model_unenriched_powerdata), "_"), "[[", 2))
+  model_unenriched_powerdata$ss <- seq(as.numeric(model_unenriched$args[2]), as.numeric(model_unenriched$args[3]), by= as.numeric(model_unenriched$args[4]))
   lowerval <- max(which(model_unenriched_powerdata$mean < .8))
   upperval <- min(which(model_unenriched_powerdata$mean >= .8))
   xvals <- c(model_unenriched_powerdata["ss"][lowerval,], model_unenriched_powerdata["ss"][upperval,])
   samplesize <- CalculateSampleAtPower(c(model_unenriched_powerdata["mean"][lowerval,]*100, model_unenriched_powerdata["mean"][upperval,]*100, xvals),
                                        c(model_unenriched_powerdata["ci.low"][lowerval,]*100, model_unenriched_powerdata["ci.low"][upperval,]*100, xvals),
                                        c(model_unenriched_powerdata["ci.high"][lowerval,]*100, model_unenriched_powerdata["ci.high"][upperval,]*100, xvals))
+  samplesize["trial"] <- as.numeric(model_unenriched$args[6])
   init.data <- rbind(init.data, samplesize)
   }
   init.data <- init.data[2:nrow(init.data),]
@@ -885,9 +895,6 @@ CalculateSampleAtPowerModel <- function(model.list) {
     substr(x, nchar(x)-n+1, nchar(x))
   }
   
-  modelnames <- substrRight(modelnames, 2)
-  modelnames <- (as.numeric(modelnames) / 10)
-  init.data$td <- modelnames
   colnames(init.data) <- c("Mean", "CI_high", "CI_low", "Trial Duration (Years)")
   tablecol <- paste(round(init.data$Mean, 1), " (", round(init.data$CI_low, 1), " , ", round(init.data$CI_high, 1), ")", sep="")
   init.data <- init.data[,c("Trial Duration (Years)","Mean", "CI_low", "CI_high")]
@@ -1079,7 +1086,7 @@ GetConfInt <- function(data_succ) {
     returnframe <- rbind(returnframe, row.val)
   }
   colnames(returnframe) <- c("mean", "ci.low", "ci.high")
-  rownames(returnframe) <- names_data
+  #rownames(returnframe) <- names_data
   return(returnframe)
 }
 
@@ -1161,11 +1168,11 @@ PropTestIter <- function(covariate.props) {
     p.val <- prop.test(x=c(tr[[i]][[1]], pl[[i]][[1]]), n=c(tr[[i]][[2]], pl[[i]][[2]]))$p.value
     init.vec <- append(init.vec, p.val)
   }
-  names(init.vec) <- names(tr)
+  #names(init.vec) <- names(tr)
+  init.vec[which(is.nan(init.vec))] <- 1
+  init.vec[which(is.na(init.vec))] <- 1
   return(init.vec)
 }
-
-
 
 TrPlMeanCI <- function(outer_list) {
   nsim       <- ncol(outer_list$Treatment)
@@ -1409,7 +1416,6 @@ DefineMVND <- function(data, n) {
     return(return.vec)
   }
   
-  
   thresholds <- c()
   data <- data[,c("PTEDUCAT_bl",  "AGE_bl", "PTGENDER", "MMSE_bl", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")]
   names.vec <- c("PTGENDER", "CDGLOBAL_bl", "LewyPos", "CAAPos", "TDP43Pos", "TauPos_bl")
@@ -1471,7 +1477,6 @@ ExtendLongitudinal <- function(data, trial_duration) {
   return(data)
 }
 
-
 CompareDistributions <- function(mvnd.out) {
   b4    <- mvnd.out$cov.b4
   after <- mvnd.out$simcovs
@@ -1531,3 +1536,124 @@ TestMissingness <- function(data, outcome) {
   keeplist["missing"][which(!is.na(keeplist[outcome])),] <- 0
   return(keeplist)
 }
+
+
+ManualSimulationTEST <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL, t1errorsim="SIMU") {
+  # load in functions from GlobalEnv into current enviornment for clusterExport
+  force(RandomizeTreatment2)
+  force(DefineMVND)
+  force(ExtendLongitudinal)
+  force(lme4::lmer)
+  force(lme4::lmerControl)
+  force(dfoptim::nmkb)
+  force(dplyr::bind_cols)
+  force(splitstackshape::stratified)
+  force(CalcProportionPos)
+  force(`%notin%`)
+  force(setTxtProgressBar)
+  force(lmerTest::as_lmerModLmerTest)
+  force(dplyr::sample_n)
+  force(plyr::mapvalues)  
+  force(cramer::cramer.test)
+  force(dplyr::mutate_all)
+  force(MASS::mvrnorm)
+  force(matrixStats::colMeans2)
+  force(matrixStats::colSds)
+  force(dplyr::slice)
+  force(dplyr::n)
+  
+  opts <- list(chunkSize=10)
+  #################
+  cat("Beginning simulation")
+  cat("\n")
+  init_iter_list                      <-  list()
+  init_significance_list              <-  list()
+  init_props_list_treatment           <-  list()
+  init_props_list_placebo             <-  list()
+  form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
+  iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
+  if(t1errorsim=="T1") {
+    fixef(largemodel)["new_time:treat1"] <- 0
+  }
+  #define inner loop for parallelization
+  .nsiminnerloop <- function(j) {
+    sim.covariates      <- DefineMVND(data = data,
+                                      n    = i*2)
+    sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
+    sim.covariates.long <- StratifyContinuous(sim.covariates.long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+    #split into treatment and placebo groups while balancing subjects
+    treatment.out                <-  RandomizeTreatment2(sim.covariates.long)
+    prop                         <-  treatment.out[["props"]]
+    data_sample_treated          <-  treatment.out[["data"]]
+    props.test                   <-   PropTestIter(prop)
+    while(any(props.test <= .05)) {
+      sim.covariates      <- DefineMVND(data = data,
+                                        n    = i*2)
+      sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
+      sim.covariates.long <- StratifyContinuous(sim.covariates.long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+      
+      #split into treatment and placebo groups while balancing subjects
+      treatment.out                <-  RandomizeTreatment2(sim.covariates.long)
+      prop                         <-  treatment.out[["props"]]
+      data_sample_treated          <-  treatment.out[["data"]]
+      props.test                   <-  PropTestIter(prop)
+    }
+    
+    simulate_response_largemodel <-  simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    refit_data_outcomes           <- data.frame("large_model_response" = simulate_response_largemodel)
+    colnames(refit_data_outcomes) <- c("large_model_response")
+    fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated)
+    refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
+                                                data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
+    
+    pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
+    
+    cat("\r", j, " out of ", nsim, " complete", sep = "")
+    
+    return(list("pval"      = pval,
+                "Treatment" = prop[["Treatment"]],
+                "Placebo"   = prop[["Placebo"]]))
+  }
+  pb <- txtProgressBar(min = 1, max=nsim, style = 1)
+  envlist    <- mget(ls())
+  envlist    <- names(envlist)
+  env.append <- c("RandomizeTreatment2","KRmodcomp",
+                  "getKR","lmer","bind_cols","stratified", "sample_n",
+                  ".nsiminnerloop", "mapvalues", "%>%",
+                  "CalcProportionPos", 
+                  "%notin%", "ExtendLongitudinal", "StratifyContinuous", "DefineMVND", "PropTestIter",
+                  "cramer.test", "mutate_all", "mvrnorm", "colMeans2", "colSds", "slice", "n")
+  
+  #create cluster
+  cl <- makeCluster(1, outfile="")
+  doSNOW::registerDoSNOW(cl)
+  envlist <- append(envlist, env.append)
+  clusterExport(cl, envlist, envir = environment())
+  t1 <- Sys.time()
+  
+  outer <- foreach(i = sample_sizes, .options.nws=opts) %:%
+    foreach(j = 1:nsim, .combine='c', .inorder=FALSE) %dopar% {
+      setTxtProgressBar(pb, j)
+      .nsiminnerloop(j)
+    }
+  t2     <- Sys.time()
+  stopCluster(cl)
+  names(outer) <- paste("SS_", sample_sizes, sep="")
+  outer        <- Map(CombineOutcomes, outer)
+  for(i in 1:length(outer)) {
+    outer[[i]][["sample_size"]] <- sample_sizes[i]
+  }
+  ftestdf                 <- CombineIters(outer, nsim)
+  successes               <- CalcSuccesses(outer, nsim)
+  conf.inter              <- GetConfInt(successes)
+  balance.cov.diagnostics <- BalanceDiagnostics(outer)
+  timerun <- difftime(t2, t1, units = "mins")
+  return(list("Successes"   = successes, 
+              "power.data"  = conf.inter, 
+              "cov.balance" = outer,
+              "prop.tests"  = balance.cov.diagnostics,
+              "time_to_run" = timerun,
+              "ftestdf" = ftestdf,
+              "simulation_type" = t1errorsim))
+}
+
