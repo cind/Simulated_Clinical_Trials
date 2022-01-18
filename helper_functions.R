@@ -700,6 +700,10 @@ RandomizeTreatment2 <- function(longdata, no.prop=NULL) {
                                      stratifydf$CDGLOBAL_bl, stratifydf$TauPos_bl)
   stratifydf$stratvar   <- factor(stratifydf$stratvar)
   stratifieddata        <- stratified(stratifydf, "stratvar", size = (.5), bothSets = FALSE)
+  if(nrow(stratifieddata)==0) {
+    keeprids<- sample(stratifydf$RID, nrow(stratifydf)*.5)
+    stratifieddata   <- subset(stratifydf, RID %in% keeprids)
+    }
   rownames(stratifieddata) <- 1:nrow(stratifieddata)
   half <- round(nrow(stratifydf) / 2)
   diff <- half - nrow(stratifieddata)
@@ -1071,36 +1075,33 @@ DPMPlots <- function(list, ylab, ylim.low, ylim.high) {
 }
 
 
-GetConfInt <- function(data_succ) {
-  names_data  <- colnames(data_succ)
+GetConfInt <- function(data, sig_level) {
+  names_data  <- colnames(data)
   returnframe <- data.frame()
-  for(i in 1:ncol(data_succ)) {
-    x         <- unname(unlist(data_succ[i]))
-    succ      <- length(which(x == "y"))
+  for(i in 1:ncol(data)) {
+    x         <- unname(unlist(data[i]))
+    success      <- length(which(x <= sig_level))
     total     <- length(x)
-    mean      <- succ / total
-    binom     <- binom.test(succ, total)
-    confinter <-(stats::binom.test(succ, total))
+    mean      <- success / total
+    binom     <- binom.test(success, total)
+    confinter <- (stats::binom.test(success, total))
     confinter <- as.numeric(confinter$conf.int)
     row.val   <- c(mean, confinter)
     returnframe <- rbind(returnframe, row.val)
   }
   colnames(returnframe) <- c("mean", "ci.low", "ci.high")
-  #rownames(returnframe) <- names_data
   return(returnframe)
 }
 
 
-CombineOutcomes <- function(insidelist) {
-  pvals      <- which(names(insidelist) == "pval")
-  treatments <- which(names(insidelist) == "Treatment")
-  placebs    <- which(names(insidelist) == "Placebo")
-  vals       <- insidelist[pvals]
-  treatments <- insidelist[treatments]
-  placebs    <- insidelist[placebs]
-  treatments <- do.call(cbind, treatments)
-  placebs    <- do.call(cbind, placebs)
-  vals       <- unlist(vals)
+CombineOutcomes <- function(outer) {
+  for(i in 1:length(outer)) {
+    iter.list <- outer[[i]]
+    
+  }
+  pvals       <- which(names(insidelist) == "pval")
+  treatments  <- which(names(insidelist) == "Treatment")
+  placebs     <- which(names(insidelist) == "Placebo")
   return(list("Treatment" = treatments,
               "Placebo" = placebs,
               "pval" = vals))
@@ -1165,10 +1166,12 @@ PropTestIter <- function(covariate.props) {
   pl <- covariate.props$Placebo
   init.vec <- c()
   for(i in 1:length(tr)) {
-    p.val <- prop.test(x=c(tr[[i]][[1]], pl[[i]][[1]]), n=c(tr[[i]][[2]], pl[[i]][[2]]))$p.value
+    a <- c(tr[[i]][[1]], pl[[i]][[1]])
+    b <- c(tr[[i]][[2]], pl[[i]][[2]])
+    mat <- matrix(c(a, b-a), ncol=2)
+    p.val <- chisq.test(mat, simulate.p.value = TRUE)$p.value
     init.vec <- append(init.vec, p.val)
   }
-  #names(init.vec) <- names(tr)
   init.vec[which(is.nan(init.vec))] <- 1
   init.vec[which(is.na(init.vec))] <- 1
   return(init.vec)

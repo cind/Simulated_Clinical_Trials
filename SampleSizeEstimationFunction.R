@@ -1,42 +1,23 @@
-ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel, smallmodel, sample_sizes, nsim, data, trial_duration=NULL, t1errorsim="SIMU") {
-  # load in functions from GlobalEnv into current enviornment for clusterExport
-  force(RandomizeTreatment2)
-  force(DefineMVND)
-  force(ExtendLongitudinal)
-  force(lme4::lmer)
-  force(lme4::lmerControl)
-  force(dfoptim::nmkb)
-  force(dplyr::bind_cols)
-  force(splitstackshape::stratified)
-  force(CalcProportionPos)
-  force(`%notin%`)
-  force(setTxtProgressBar)
-  force(lmerTest::as_lmerModLmerTest)
-  force(dplyr::sample_n)
-  force(plyr::mapvalues)  
-  force(cramer::cramer.test)
-  force(dplyr::mutate_all)
-  force(MASS::mvrnorm)
-  force(matrixStats::colMeans2)
-  force(matrixStats::colSds)
-  force(dplyr::slice)
-  force(dplyr::n)
-  
-  opts <- list(chunkSize=10)
-  #################
+ManualSimulation <- function(formula_model, model, treatment_term, sample_sizes, nsim, data, trial_duration, t1errorsim = "power_simulation", sig_level=.05, verbose=TRUE) {
+  t1 <- Sys.time()
   cat("Beginning simulation")
   cat("\n")
   init_iter_list                      <-  list()
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
-  form_lm_split <- strsplit(formula_largemodel, "~")[[1]][2]
-  iter_form_lm  <- paste("large_model_response", form_lm_split, sep="~")
+  form_lm_split <- strsplit(formula_model, "~")[[1]][2]
+  iter_form_lm  <- paste("model_response", form_lm_split, sep="~")
   if(t1errorsim=="T1") {
-    fixef(largemodel)["new_time:treat1"] <- 0
+    fixef(largemodel)[treatment_term] <- 0
   }
+  
+  props <- list()  
+  pvals <- list()
+
   #define inner loop for parallelization
-  .nsiminnerloop <- function(j) {
+  .nsiminnerloop <- function(i, j) {
+    
     sim.covariates      <- DefineMVND(data = data,
                                       n    = i*2)
     sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
@@ -46,7 +27,7 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
     prop                         <-  treatment.out[["props"]]
     data_sample_treated          <-  treatment.out[["data"]]
     props.test                   <-   PropTestIter(prop)
-    while(any(props.test <= .05)) {
+    while(any(props.test <= .05) | nlevels(factor(sim.covariates$PTGENDER)) < 2 | nlevels(factor(sim.covariates$CDGLOBAL_bl)) < 2) {
       sim.covariates      <- DefineMVND(data = data,
                                         n    = i*2)
       sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
@@ -58,61 +39,43 @@ ManualSimulation <- function(formula_largemodel, largemodel, formula_smallmodel,
       data_sample_treated          <-  treatment.out[["data"]]
       props.test                   <-  PropTestIter(prop)
     }
-    
-    simulate_response_largemodel <-  simulate(largemodel, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
-    refit_data_outcomes           <- data.frame("large_model_response" = simulate_response_largemodel)
-    colnames(refit_data_outcomes) <- c("large_model_response")
+    simulate_response_largemodel  <-  simulate(model, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    refit_data_outcomes           <- data.frame("model_response" = simulate_response_largemodel)
+    colnames(refit_data_outcomes) <- c("model_response")
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated)
     refit_large                   <- lme4::lmer(formula = as.formula(iter_form_lm), 
                                                 data = fit_iter_data, REML = TRUE, control = lme4::lmerControl(optimizer = "nmkbw"))
 
-    pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"]["new_time:treat1"])
+    pval <-  as.numeric(summary(lmerTest::as_lmerModLmerTest(refit_large))[["coefficients"]][,"Pr(>|t|)"][treatment_term])
     
+    if(verbose) {
     cat("\r", j, " out of ", nsim, " complete", sep = "")
-    
+    }
     return(list("pval"      = pval,
                 "Treatment" = prop[["Treatment"]],
                 "Placebo"   = prop[["Placebo"]]))
   }
-  pb <- txtProgressBar(min = 1, max=nsim, style = 1)
-  envlist    <- mget(ls())
-  envlist    <- names(envlist)
-  env.append <- c("RandomizeTreatment2","KRmodcomp",
-                  "getKR","lmer","bind_cols","stratified", "sample_n",
-                  ".nsiminnerloop", "mapvalues", "%>%",
-                  "CalcProportionPos", 
-                  "%notin%", "ExtendLongitudinal", "StratifyContinuous", "DefineMVND", "PropTestIter",
-                 "cramer.test", "mutate_all", "mvrnorm", "colMeans2", "colSds", "slice", "n")
   
-  #create cluster
-  cl <- makeCluster(1, outfile="")
-  doSNOW::registerDoSNOW(cl)
-  envlist <- append(envlist, env.append)
-  clusterExport(cl, envlist, envir = environment())
-  t1 <- Sys.time()
-  
-  outer <- foreach(i = sample_sizes, .options.nws=opts) %:%
-    foreach(j = 1:nsim, .combine='c', .inorder=FALSE) %dopar% {
-      setTxtProgressBar(pb, j)
-      .nsiminnerloop(j)
-    }
-  t2     <- Sys.time()
-  stopCluster(cl)
-  names(outer) <- paste("SS_", sample_sizes, sep="")
-  outer        <- Map(CombineOutcomes, outer)
-  for(i in 1:length(outer)) {
-    outer[[i]][["sample_size"]] <- sample_sizes[i]
+  for(i in 1:length(sample_sizes)) {
+    props_ss <- list()
+    pvals_ss  <- c()
+    for(j in 1:nsim) {
+      
+      iter_j <- .nsiminnerloop(sample_sizes[i], j)
+      props_ss[[j]] <- iter_j[c("Treatment", "Placebo")]
+      pvals_ss[[j]] <- iter_j[[c("pval")]]
+      }
+    props[[i]] <- props_ss
+    pvals[[i]] <- pvals_ss
   }
-  ftestdf                 <- CombineIters(outer, nsim)
-  successes               <- CalcSuccesses(outer, nsim)
-  conf.inter              <- GetConfInt(successes)
-  balance.cov.diagnostics <- BalanceDiagnostics(outer)
+  names(props) <- names(pvals) <- paste("sample_size_", sample_sizes, sep="")
+  pval.df                      <- as.data.frame(do.call(cbind, pvals))
+  conf.inter                   <- GetConfInt(pval.df, sig_level)
+  t2     <- Sys.time()
   timerun <- difftime(t2, t1, units = "mins")
-  return(list("Successes"   = successes, 
-              "power.data"  = conf.inter, 
-              "cov.balance" = outer,
-              "prop.tests"  = balance.cov.diagnostics,
-              "time_to_run" = timerun,
-              "ftestdf" = ftestdf,
-              "simulation_type" = t1errorsim))
+  return(list("Power_Per_Sample"   = conf.inter, 
+              "Treatment/Placebo_Balance" = props,
+              "Run_Time" = timerun,
+              "simulation_type" = t1errorsim,
+              "pval.df" = pval.df))
 }

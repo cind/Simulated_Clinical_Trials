@@ -16,19 +16,17 @@ models_list          <- readRDS(fitted_simulation_list)
 data                 <- simr::getData(models_list$smallmodel)
 data$PTGENDER        <- relevel(data$PTGENDER, "Male")
 data                 <- data[!duplicated(data$RID),]
+treatment_term       <- "new_time:treat1"
 
-ss_fitted <- ManualSimulation(formula_largemodel    = models_list$formula_largemodel,
-                                 largemodel         = models_list$largemodel,
-                                 formula_smallmodel = models_list$formula_smallmodel,
-                                 smallmodel         = models_list$smallmodel,
+ss_fitted <- ManualSimulation(formula_model    = models_list$formula_largemodel,
+                                 model         = models_list$largemodel,
+                                 treatment_term = treatment_term,
                                  sample_sizes       = seq(seq.a, seq.b, by=seq.by),
                                  nsim               = nsim,
                                  data               = data,
+                                 sig_level          = 0.05,
                                  trial_duration     = trial_duration,
-                                 t1errorsim         = t1)
-
-ss_fitted[["args"]] <- args
-
+                                 verbose            = TRUE)
 if(t1=="T1") {
   split.return <- strsplit(return_file, "/")
   obj.name <- split.return[[1]][length(split.return[[1]])]
@@ -41,16 +39,8 @@ if(t1=="T1") {
 }
 
 
+ss_fitted[["args"]] <- args
+
 saveRDS(ss_fitted, return_file)
 
-
-
-
-#write.email.subject.end <- paste("Simulation Finished:", splitinput, Sys.time(), sep = " ")
-#write.email.text.end <- paste("Finished simulation at", Sys.time(), "for", splitinput, sep = " ")
-
-#email.end <- WriteEmail(subject = write.email.subject.end,
-#                          text = write.email.text.end)
-
-#gm_send_message(email.end)
 
