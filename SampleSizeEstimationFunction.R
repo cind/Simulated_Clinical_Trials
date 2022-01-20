@@ -1,4 +1,6 @@
-ManualSimulation <- function(formula_model, model, treatment_term, sample_sizes, nsim, data, trial_duration, t1errorsim = "power_simulation", sig_level=.05, verbose=TRUE) {
+ManualSimulation <- function(model, parameter, pct.change = NULL, delta = NULL, time = c(0, .5, 1, 1.5, 2), 
+                             sample_sizes, nsim, data, trial_duration, sig_level = .05,
+                             verbose = TRUE, balance.covariates = NULL) {
   t1 <- Sys.time()
   cat("Beginning simulation")
   cat("\n")
@@ -6,26 +8,32 @@ ManualSimulation <- function(formula_model, model, treatment_term, sample_sizes,
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
   init_props_list_placebo             <-  list()
-  form_lm_split <- strsplit(formula_model, "~")[[1]][2]
-  iter_form_lm  <- paste("model_response", form_lm_split, sep="~")
-  if(t1errorsim=="T1") {
-    fixef(largemodel)[treatment_term] <- 0
-  }
+  formula_model                       <-  as.character(formula(model))
+  formula_model_join                  <-  paste(formula_model[2], formula_model[3], sep="~")                         
+  iter_form_lm                        <-  paste("model_response", formula_model[3], sep="~")
+  model.covariates                    <-  GetCovariates(model, parameter)
+  rand.effect                         <-  names(ranef(model))
   
+  if(!is.null(balance.covariates)) {
+    model.covariates <- c(model.covariates, balance.covariates)
+    model.covariates <- unique(model.covariates)
+  }
   props <- list()  
   pvals <- list()
 
   #define inner loop for parallelization
   .nsiminnerloop <- function(i, j) {
     
-    sim.covariates      <- DefineMVND(data = data,
-                                      n    = i*2)
-    sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
-    sim.covariates.long <- StratifyContinuous(sim.covariates.long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
+    sim.covariates      <- DefineMVND(data       = data,
+                                      n          = i*2,
+                                      covariates = model.covariates)
+    sim.covariates.long <- ExtendLongitudinal(sim.covariates, parameter, time, rand.effect)
+    sim.covariates.long <- StratifyContinuous(sim.covariates.long, rand.effect)
     #split into treatment and placebo groups while balancing subjects
-    treatment.out                <-  RandomizeTreatment2(sim.covariates.long)
-    prop                         <-  treatment.out[["props"]]
-    data_sample_treated          <-  treatment.out[["data"]]
+    
+    treatment.out                <-   RandomizeTreatment2(sim.covariates.long)
+    prop                         <-   treatment.out[["props"]]
+    data_sample_treated          <-   treatment.out[["data"]]
     props.test                   <-   PropTestIter(prop)
     while(any(props.test <= .05) | nlevels(factor(sim.covariates$PTGENDER)) < 2 | nlevels(factor(sim.covariates$CDGLOBAL_bl)) < 2) {
       sim.covariates      <- DefineMVND(data = data,
@@ -39,7 +47,7 @@ ManualSimulation <- function(formula_model, model, treatment_term, sample_sizes,
       data_sample_treated          <-  treatment.out[["data"]]
       props.test                   <-  PropTestIter(prop)
     }
-    simulate_response_largemodel  <-  simulate(model, newdata = data_sample_treated, allow.new.levels=TRUE, use.u=FALSE)
+    simulate_response_largemodel  <- simulate(model, newdata = data_sample_treated, allow.new.levels = TRUE, use.u = FALSE)
     refit_data_outcomes           <- data.frame("model_response" = simulate_response_largemodel)
     colnames(refit_data_outcomes) <- c("model_response")
     fit_iter_data                 <- bind_cols(refit_data_outcomes, data_sample_treated)
@@ -73,9 +81,9 @@ ManualSimulation <- function(formula_model, model, treatment_term, sample_sizes,
   conf.inter                   <- GetConfInt(pval.df, sig_level)
   t2     <- Sys.time()
   timerun <- difftime(t2, t1, units = "mins")
-  return(list("Power_Per_Sample"   = conf.inter, 
+  return(list("Power_Per_Sample"          = conf.inter, 
               "Treatment/Placebo_Balance" = props,
-              "Run_Time" = timerun,
-              "simulation_type" = t1errorsim,
-              "pval.df" = pval.df))
+              "Run_Time"                  = timerun,
+              "simulation_type"           = t1errorsim,
+              "pval.df"                   = pval.df))
 }
