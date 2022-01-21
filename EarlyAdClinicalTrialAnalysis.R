@@ -566,16 +566,28 @@ long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.
 
 ######################## ADAS13 ######################## 
 
-formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (1 + new_time|RID)"
+formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (0+new_time|RID)"
 long.earlyad.adas13_with_treatment                     <- StratifyContinuous(long.earlyad.adas13, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
-long.earlyad.adas13_with_treatment                     <- RandomizeTreatment2(long.earlyad.adas13_with_treatment.pr)
-checkprops <- PropTestIter(long.earlyad.adas13_with_treatment$props)
+long.earlyad.adas13_with_treatment                     <- RandomizeTreatment2(long.earlyad.adas13_with_treatment)
 
 long.earlyad.tplus.adas13_with_treatment               <- StratifyContinuous(long.earlyad.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.neuroenriched.tplus.adas13_with_treatment <- StratifyContinuous(long.earlyad.neuroenriched.tplus.adas13_with_treatment, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 
-model.earlyad.adas13.rs                     <- MapLmer(newdata = long.earlyad.adas13_with_treatment,
+model.earlyad.adas13.rs                     <- MapLmer(newdata = long.earlyad.adas13,
                                                        formula.model = formula.earlyad.adas13.rs)
+
+trythisdata     <- long.earlyad.adas13
+trythisdata     <- trythisdata[!duplicated(trythisdata$RID),]
+trythisdata     <- DefineMVND(trythisdata, n=330, covariates = c("PTEDUCAT_bl", "AGE_bl","PTGENDER","MMSE_bl","CDGLOBAL_bl","ADAS13_bl"))
+trythisdatalong <- ExtendLongitudinal(trythisdata, "new_time", c(0, .5, 1, 1.5, 2), "ID")
+trythisdatalong <- StratifyContinuous(trythisdatalong, "ID", "new_time")
+balancedata     <- names(Filter(is.factor, trythisdatalong))
+balancedata     <- balancedata[balancedata!="ID"]
+randomized      <-RandomizeTreatment(trythisdatalong, "ID", balancedata)
+PropTestIter(randomized$props)
+
+testmatrix<-matrix(c(c(67, 98), c(73, 92)), ncol=2)
+
 model.earlyad.tplus.adas13.rs               <- MapLmer(newdata = long.earlyad.tplus.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
 model.earlyad.neuroenriched.tplus.adas13.rs <- MapLmer(newdata = long.earlyad.neuroenriched.tplus.adas13_with_treatment,

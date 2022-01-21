@@ -656,44 +656,45 @@ ZscoreAdj <- function(data, col_names, control.data) {
 }
 
 
-RandomizeTreatment <- function(longdata, rand.effect, model.covariates) {
-  `%notin%`  <- Negate(`%in%`)
-  data <- longdata[!duplicated(longdata[rand.effect]),]
-  data$stratvar   <- interaction(data[,model.covariates])
-  return(data)
-  data$stratvar   <- factor(data$stratvar)
-  stratifieddata        <- stratified(data, "stratvar", size = (.5), bothSets = FALSE)
-  if(nrow(stratifieddata) == 0) {
-    keeprids<- sample(data[rand.effect], nrow(data)*.5)
-    stratifieddata   <- subset(data, rand.effect %in% keeprids)
-    }
-  rownames(stratifieddata) <- 1:nrow(stratifieddata)
-  half <- round(nrow(data) / 2)
-  diff <- half - nrow(stratifieddata)
-  if(diff > 0) {
-    disjoint         <- subset(data, rand.effect %notin% stratifieddata[rand.effect])
-    add.rows         <- sample_n(disjoint, diff)
-    stratifieddata   <- rbind(stratifieddata, add.rows)
-    placebo          <-  subset(data, rand.effect %notin% stratifieddata[rand.effect])
-  } else if(diff < 0)  {
-    drop.rows <- sample(1:nrow(stratifieddata), abs(diff))
-    stratifieddata      <- stratifieddata[-drop.rows,]
-    placebo             <-  subset(data, rand.effect %notin% stratifieddata[rand.effect])
-  } else {
-    placebo             <-  subset(data, rand.effect %notin% stratifieddata[rand.effect])
+RandomizeTreatment <- function(longdata, rand.effect, balance.covariates) {
+  `%notin%`             <- Negate(`%in%`)
+  data                  <- longdata[!duplicated(longdata[rand.effect]),]
+  data$stratvar         <- interaction(data[,balance.covariates])
+  data$stratvar         <- factor(data$stratvar)
+  treatment        <- as.data.frame(stratified(data, "stratvar", size = (.5), bothSets = FALSE))
+  data.id          <- unique(data[,rand.effect])
+  strat.data.id    <- unique(treatment[,rand.effect])
+  if(nrow(treatment) == 0) {
+    keeprids         <- sample(data.id, round(length(data.id) *.5))
+    treatment   <- subset(data, data[,rand.effect] %in% keeprids)
   }
-  stratifieddata        <- list(stratifieddata, placebo)
-  names(stratifieddata) <- c("Treatment", "Placebo")
-  get.props             <- Map(CalcProportionPos, stratifieddata)
-  treat.rids            <- unique(stratifieddata$Treatment[rand.effect])
-  control.rids          <- unique(stratifieddata$Placebo[rand.effect])
-  treatmentrows         <- subset(longdata, rand.effect %in% treat.rids)
+  rownames(treatment) <- 1:nrow(treatment)
+  half <- round(nrow(data) / 2)
+  diff <- half - nrow(treatment)
+if(diff > 0) {
+    disjoint         <- subset(data, data[,rand.effect] %notin% strat.data.id)
+    add.rows         <- sample_n(disjoint, diff)
+    treatment        <- rbind(treatment, add.rows)
+    placebo          <-  subset(data, data[ ,rand.effect] %notin% treatment[ ,rand.effect])
+  } else if(diff < 0)  {
+    drop.rows <- sample(1:nrow(treatment), abs(diff))
+    treatment      <- treatment[-drop.rows,]
+    placebo             <-  subset(data, data[ ,rand.effect] %notin% treatment[ ,rand.effect])
+  } else {
+    placebo             <-  subset(data, data[ ,rand.effect] %notin% treatment[ ,rand.effect])
+  }
+  props.treatment       <- CalcProportionPos(treatment, balance.covariates)
+  props.placebo         <- CalcProportionPos(placebo, balance.covariates)
+  treat.rids            <- unique(treatment[,rand.effect])
+  control.rids          <- unique(placebo[,rand.effect])
+  treatmentrows         <- subset(longdata, longdata[,rand.effect] %in% treat.rids)
   treatmentrows$treat   <- rep(1, nrow(treatmentrows))
-  controlrows           <- subset(longdata, rand.effect %in% control.rids)
+  controlrows           <- subset(longdata, longdata[,rand.effect] %in% control.rids)
   controlrows$treat     <- rep(0, nrow(controlrows))
   returndata            <- rbind(treatmentrows, controlrows)
   returndata$treat      <- returndata$treat
-  return(list("data"= returndata, "props" = get.props))
+  return(list("data"= returndata, "props" = list("Treatment" = props.treatment,
+                                                 "Placebo"   = props.placebo)))
 }
 
 
@@ -701,7 +702,7 @@ RandomizeTreatment <- function(longdata, rand.effect, model.covariates) {
 CalcProportionPos <- function(data, model.covariates) {
   data <- as.data.frame(data)
   data <- data[,model.covariates]
-  prop <- Map(function(x) {table(x) / length(x)}, data)
+  prop <- Map(function(x) {table(x)}, data)
   return(prop)
 }
 
@@ -1105,29 +1106,23 @@ StratifyContinuous <- function(longdata, rand.effect, parameter) {
   stratcols  <- stratcols[stratcols!=parameter]
   bline      <- StratifyContVar(data, stratcols = stratcols, rand.effect = rand.effect)
   longdata   <- merge(longdata, bline, by=rand.effect, all.x=TRUE)
-  return(longdata)
+  return("longdata"= longdata)
 }
 
 
 
-BalanceDiagnostics <- function(outer) {
-  prop_test_frame <- Map(PropTestIter, outer)
-  return(prop_test_frame)
-}
 
 PropTestIter <- function(covariate.props) {
   tr <- covariate.props$Treatment
   pl <- covariate.props$Placebo
   init.vec <- c()
   for(i in 1:length(tr)) {
-    a <- c(tr[[i]][[1]], pl[[i]][[1]])
-    b <- c(tr[[i]][[2]], pl[[i]][[2]])
-    mat <- matrix(c(a, b-a), ncol=2)
+    a <- tr[[i]]
+    b <- pl[[i]]
+    mat <- matrix(c(a,b), ncol=2)
     p.val <- chisq.test(mat, simulate.p.value = TRUE)$p.value
     init.vec <- append(init.vec, p.val)
   }
-  init.vec[which(is.nan(init.vec))] <- 1
-  init.vec[which(is.na(init.vec))] <- 1
   return(init.vec)
 }
 

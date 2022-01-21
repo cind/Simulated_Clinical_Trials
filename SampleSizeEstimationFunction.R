@@ -24,28 +24,29 @@ ManualSimulation <- function(model, parameter, pct.change = NULL, delta = NULL, 
   #define inner loop for parallelization
   .nsiminnerloop <- function(i, j) {
     
-    sim.covariates      <- DefineMVND(data       = data,
-                                      n          = i*2,
-                                      covariates = model.covariates)
-    sim.covariates.long <- ExtendLongitudinal(sim.covariates, parameter, time, rand.effect)
-    sim.covariates.long <- StratifyContinuous(sim.covariates.long, rand.effect)
-    #split into treatment and placebo groups while balancing subjects
-    
-    treatment.out                <-   RandomizeTreatment2(sim.covariates.long)
+    sim.covariates      <- DefineMVND(  data       = data,
+                                        n          = i * 2,
+                                        covariates = model.covariates)
+    sim.covariates.long    <- ExtendLongitudinal(sim.covariates, parameter, time, rand.effect)
+    sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter)
+    balancecolumns         <- names(Filter(is.factor, sim.covariates.long))
+    balancecolumns         <- balancecolumns[balancecolumns != "ID"]
+    treatment.out          <- RandomizeTreatment(sim.covariates.long, rand.effect, balancecolumns)
     prop                         <-   treatment.out[["props"]]
     data_sample_treated          <-   treatment.out[["data"]]
     props.test                   <-   PropTestIter(prop)
     while(any(props.test <= .05) | nlevels(factor(sim.covariates$PTGENDER)) < 2 | nlevels(factor(sim.covariates$CDGLOBAL_bl)) < 2) {
-      sim.covariates      <- DefineMVND(data = data,
-                                        n    = i*2)
-      sim.covariates.long <- ExtendLongitudinal(sim.covariates, trial_duration = trial_duration)
-      sim.covariates.long <- StratifyContinuous(sim.covariates.long, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
-      
-      #split into treatment and placebo groups while balancing subjects
-      treatment.out                <-  RandomizeTreatment2(sim.covariates.long)
-      prop                         <-  treatment.out[["props"]]
-      data_sample_treated          <-  treatment.out[["data"]]
-      props.test                   <-  PropTestIter(prop)
+      sim.covariates      <- DefineMVND( data       = data,
+                                         n          = i * 2,
+                                         covariates = model.covariates)
+      sim.covariates.long    <- ExtendLongitudinal(sim.covariates, parameter, time, rand.effect)
+      sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter)
+      balancecolumns         <- names(Filter(is.factor, sim.covariates.long))
+      balancecolumns         <- balancecolumns[balancecolumns != "ID"]
+      treatment.out          <- RandomizeTreatment(sim.covariates.long, rand.effect, balancecolumns)
+      prop                         <-   treatment.out[["props"]]
+      data_sample_treated          <-   treatment.out[["data"]]
+      props.test                   <-   PropTestIter(prop)
     }
     simulate_response_largemodel  <- simulate(model, newdata = data_sample_treated, allow.new.levels = TRUE, use.u = FALSE)
     refit_data_outcomes           <- data.frame("model_response" = simulate_response_largemodel)
