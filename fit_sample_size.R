@@ -12,15 +12,20 @@ source("/Users/adamgabriellang/Desktop/clinical_trial_sim/helper_functions.R")
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/email_setup.R")
 source("/Users/adamgabriellang/Desktop/clinical_trial_sim/SampleSizeEstimationFunction.R")
 
-models_list          <- readRDS(fitted_simulation_list)
-data                 <- simr::getData(models_list$smallmodel)
+model         <- readRDS("/Users/adamgabriellang/Desktop/clinical_trial_test_model.rds")
+data                 <- simr::getData(model)
 data$PTGENDER        <- relevel(data$PTGENDER, "Male")
 data                 <- data[!duplicated(data$RID),]
-treatment_term       <- "new_time:treat1"
+seq.a  <- 100
+seq.b  <- 200
+seq.by <-50
+nsim   <-10
+trial_duration<-1
+parameter       <- "new_time"
 
-ss_fitted <- ManualSimulation(formula_model    = models_list$formula_largemodel,
-                                 model         = models_list$largemodel,
-                                 treatment_term = treatment_term,
+
+ss_fitted <- ManualSimulation(   model         = model,
+                                 parameter = parameter,
                                  sample_sizes       = seq(seq.a, seq.b, by=seq.by),
                                  nsim               = nsim,
                                  data               = data,

@@ -728,7 +728,7 @@ RandomizeTreatment2NoPath <- function(data, stratcolumns, longdata) {
 
 MapLmer <- function(newdata, formula.model) {
   newdata <- newdata
-  lme.fit <- lme4::lmer(as.formula(formula.model), data = newdata, REML=TRUE, control = lmerControl(optimizer ="nmkbw"))
+  lme.fit <- lme4::lmer(as.formula(formula.model), data = newdata, REML=TRUE)
   return(lme.fit)
 }
 
@@ -1343,7 +1343,7 @@ CalculateSampleAtPower_markdown <- function(data, y=80) {
 
 
 
-DefineMVND <- function(data, n, covariates) {
+DefineMVND <- function(data, rand.effect, n, covariates, cols.numeric, cols.factor) {
   props.covs <- function(list) {
     list <- as.numeric(list)
     list <- list / sum(list)
@@ -1369,10 +1369,8 @@ DefineMVND <- function(data, n, covariates) {
   
   thresholds      <- c()
   data            <- data[ ,covariates]
-  columns.factor  <- names(Filter(is.factor, data))
-  columns.numeric <- c(names(Filter(is.integer, data)), 
-                       names(Filter(is.numeric, data)))
-  columns.numeric <- unique(columns.numeric)
+  columns.factor  <- cols.factor
+  columns.numeric <- cols.numeric
   continuousdata  <- data.frame(matrix(nrow = nrow(data)))
   
   if(length(columns.numeric) > 0) {
@@ -1409,11 +1407,11 @@ DefineMVND <- function(data, n, covariates) {
   simcovs             <- as.data.frame(simcovs)
   if(length(columns.factor) > 0) {
   for(i in columns.factor) {
-  threshold <- CalcCutoff(means.log[[i]], sds.log[[i]], pi[[i]])
+  threshold   <- CalcCutoff(means.log[[i]], sds.log[[i]], pi[[i]])
   simcovs[,i] <- cut(simcovs[,i], 
                      breaks  = threshold, 
                      labels  = 1:(length(threshold)-1))
-  levels.i <- levels(factor(data[,i]))
+  levels.i    <- levels(factor(data[,i]))
   simcovs[,i] <- mapvalues(simcovs[,i], from=c(1:length(levels.i)), to = levels.i)
   simcovs[,i] <- factor(as.character(simcovs[,i]))
   }
@@ -1475,7 +1473,7 @@ OverallvsTau <- function(dpm.list.overall, dpm.list.tau, ylab, ymin, ymax) {
 
 
 GetCovariates <- function(model, parameter) {
-  model.formula       <- formula(model.earlyad.adas13.rs)
+  model.formula       <- formula(model)
   model.formula       <- as.character(model.formula)
   fixed.effects.model <- gsub("\\s*\\([^\\)]+\\)","", model.formula[3])
   fixed.effects.model <- unlist(strsplit(fixed.effects.model, "\\+"))
@@ -1487,5 +1485,72 @@ GetCovariates <- function(model, parameter) {
 
 
 
+AddTreatmentTerm <- function(model, parameter, pct.change, data, rand.effect) {
+  fixd           <- nlme::fixef(model)
+  treatment_term <- paste(parameter, "treat", sep = ":")
+  par.loc        <- which(names(fixd) == parameter)
+  treatment      <- fixd[parameter] * pct.change
+  fixd           <- append(fixd, treatment, after = par.loc)
+  names(fixd)[par.loc + 1] <- treatment_term
+  fixd           <- append(fixd, 0)
+  names(fixd)[length(fixd)] <- "treat"
+  rand.effect.str <- str_extract_all(as.character(formula(model))[3], 
+                                     "\\([^()]+\\)")[[1]]
+  response       <- as.character(formula(model))[2]
+  names.terms    <- attr(terms(model), "term.labels")
+  par.loc        <- which(names.terms == parameter)
+  names.terms    <- append(names.terms, treatment_term, after = par.loc)
+  names.terms    <- append(names.terms, "treat")
+  
+  vc             <- VarCorr(model)
+  sig            <- sigma(model)
+  formula.model  <- paste(names.terms, collapse= " + ")
+  formula.model  <- paste(formula.model, rand.effect.str, sep= " + ")
+  formula.model  <- paste(response, formula.model, sep= " ~ ")
+  data$treat <- NA
+  subs   <- unique(data[,rand.effect])
+  treat1 <- sample(subs, length(subs)*.5)
+  treat1 <- which(data[ ,rand.effect] %in% treat1)
+  data["treat"][treat1,] <- 1
+  data["treat"][which(is.na(data["treat"])),] <- 0
+  data$treat <- as.numeric(data$treat)
+  buildtreatmentmodel <- simr::makeLmer(as.formula(formula.model), fixef = unname(fixd), VarCorr = vc, sigma = sig, data = data)
+  
+  return(buildtreatmentmodel)
+}
 
 
+
+AddTreatmentTerm <- function(model, parameter, pct.change, data, rand.effect) {
+  fixd           <- nlme::fixef(model)
+  treatment_term <- paste(parameter, "treat", sep = ":")
+  par.loc        <- which(names(fixd) == parameter)
+  treatment      <- fixd[parameter] * pct.change
+  fixd           <- append(fixd, treatment, after = par.loc)
+  names(fixd)[par.loc + 1] <- treatment_term
+  fixd           <- append(fixd, 0)
+  names(fixd)[length(fixd)] <- "treat"
+  rand.effect.str <- str_extract_all(as.character(formula(model))[3], 
+                                     "\\([^()]+\\)")[[1]]
+  response       <- as.character(formula(model))[2]
+  names.terms    <- attr(terms(model), "term.labels")
+  par.loc        <- which(names.terms == parameter)
+  names.terms    <- append(names.terms, treatment_term, after = par.loc)
+  names.terms    <- append(names.terms, "treat")
+  
+  vc             <- VarCorr(model)
+  sig            <- sigma(model)
+  formula.model  <- paste(names.terms, collapse= " + ")
+  formula.model  <- paste(formula.model, rand.effect.str, sep= " + ")
+  formula.model  <- paste(response, formula.model, sep= " ~ ")
+  data$treat <- NA
+  subs   <- unique(data[,rand.effect])
+  treat1 <- sample(subs, length(subs)*.5)
+  treat1 <- which(data[ ,rand.effect] %in% treat1)
+  data["treat"][treat1,] <- 1
+  data["treat"][which(is.na(data["treat"])),] <- 0
+  data$treat <- as.numeric(data$treat)
+  buildtreatmentmodel <- simr::makeLmer(as.formula(formula.model), fixef = unname(fixd), VarCorr = vc, sigma = sig, data = data)
+  
+  return(buildtreatmentmodel)
+}

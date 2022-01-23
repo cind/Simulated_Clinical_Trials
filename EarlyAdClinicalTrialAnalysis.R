@@ -566,7 +566,7 @@ long.earlyad.neuroenriched.tplus.mpacc_with_treatment <- RandomizeTreatment2(cs.
 
 ######################## ADAS13 ######################## 
 
-formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (0+new_time|RID)"
+formula.earlyad.adas13.rs                              <- "ADAS13~ new_time + PTEDUCAT_bl + AGE_bl + PTGENDER + MMSE_bl + CDGLOBAL_bl + ADAS13_bl+ (1 + new_time|RID)"
 long.earlyad.adas13_with_treatment                     <- StratifyContinuous(long.earlyad.adas13, c("AGE_bl", "PTEDUCAT_bl", "MMSE_bl"))
 long.earlyad.adas13_with_treatment                     <- RandomizeTreatment2(long.earlyad.adas13_with_treatment)
 
@@ -575,18 +575,55 @@ long.earlyad.neuroenriched.tplus.adas13_with_treatment <- StratifyContinuous(lon
 
 model.earlyad.adas13.rs                     <- MapLmer(newdata = long.earlyad.adas13,
                                                        formula.model = formula.earlyad.adas13.rs)
+summary(model.earlyad.adas13.rs)
+fixd<-fixef(model.earlyad.adas13.rs)
+parameter<-"new_time"
+treatment_term <- paste(parameter,"treat", sep="*")
+par.loc <- which(names(fixd) == parameter)
+fixd <- append(fixd, .1, after = 2)
+names(fixd)[par.loc+1] <- "test"
+
+
+AddTreatmentTerm <- function(model, parameter, pct.change) {
+  fixd<-simr::fixef(model)
+  treatment_term <- paste(parameter, "treat", sep="*")
+  par.loc <- which(names(fixd) == parameter)
+  treatment <- fixd[parameter] * (-1*pct.change)
+  fixd <- append(fixd, treatment, after = par.loc)
+  names(fixd)[par.loc+1] <- treatment_term
+  
+}
+str_extract_all(as.character(formula(model.earlyad.adas13.rs))[3], "\\([^()]+\\)")[[1]]
+
+as.character(formula(model.earlyad.adas13.rs))
+grep("\\s*\\([^\\)]+\\)", as.character(formula(model.earlyad.adas13.rs))[3], value = TRUE)
+strsplit(as.character(formula(model.earlyad.adas13.rs))[3], "\\s*\\([^\\)]+\\)", perl = TRUE)
+
+saveRDS(model.earlyad.adas13.rs, "/Users/adamgabriellang/Desktop/clinical_trial_test_model.rds")
 
 trythisdata     <- long.earlyad.adas13
 trythisdata     <- trythisdata[!duplicated(trythisdata$RID),]
+trythisdata     <- trythisdata[,c("new_time", "PTEDUCAT_bl", "AGE_bl", "PTGENDER",  "MMSE_bl",  "CDGLOBAL_bl", "ADAS13_bl", "RID")]
+stratcols  <- c(names(Filter(is.integer, trythisdata)), 
+                names(Filter(is.numeric, trythisdata)))
+stratcols  <- stratcols[stratcols!="new_time"]
+stratcols  <- paste(stratcols, "_strat", sep="")
+stratcols  <- append(stratcols,  c(names(Filter(is.factor, trythisdata))))
+stratcols  <- stratcols[stratcols!="RID"]
+
+
+
+
 trythisdata     <- DefineMVND(trythisdata, n=330, covariates = c("PTEDUCAT_bl", "AGE_bl","PTGENDER","MMSE_bl","CDGLOBAL_bl","ADAS13_bl"))
 trythisdatalong <- ExtendLongitudinal(trythisdata, "new_time", c(0, .5, 1, 1.5, 2), "ID")
 trythisdatalong <- StratifyContinuous(trythisdatalong, "ID", "new_time")
 balancedata     <- names(Filter(is.factor, trythisdatalong))
 balancedata     <- balancedata[balancedata!="ID"]
-randomized      <-RandomizeTreatment(trythisdatalong, "ID", balancedata)
-PropTestIter(randomized$props)
+randomized      <- RandomizeTreatment(trythisdatalong, "ID", balancedata)
+rand.data       <- randomized$data
 
-testmatrix<-matrix(c(c(67, 98), c(73, 92)), ncol=2)
+rand.data[,balancedata]
+any(Map(function(x){nlevels(x)}, rand.data[,balancedata]) < 2)
 
 model.earlyad.tplus.adas13.rs               <- MapLmer(newdata = long.earlyad.tplus.adas13_with_treatment,
                                                        formula.model = formula.earlyad.adas13.rs)
