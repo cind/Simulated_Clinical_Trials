@@ -3,6 +3,10 @@ Clinical Trial Simulation
 Adam Lang
 1/24/2022
 
+-   [Overview](#overview)
+-   [Installation](#installation)
+-   [SampleSizeEstimation](#samplesizeestimation)
+
 Overview
 ========
 
