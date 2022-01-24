@@ -14,6 +14,10 @@ library(cramer)
 
 #####################################################    FUNCTIONS   #####################################################    
 
+# ALL INTERNAL FUNCTIONS
+
+#####################################################    
+
 #' Extracts Covariates from Model Formula
 #' 
 #' @param model LME model (lme)
