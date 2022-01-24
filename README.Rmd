@@ -1,0 +1,10 @@
+---
+title: "Clinical Trial Simulation"
+author: "Adam Lang"
+date: "1/24/2022"
+output: github_document
+---
+
+Clinical Trial Simulation Test README
+
+
