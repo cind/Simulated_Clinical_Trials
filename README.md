@@ -86,6 +86,11 @@ SampleSizeEstimation Function
 -   ***balance.covariates*** Character vector of additional covariates
     to balance while running simulation <code>defaults to NULL</code>
 
+-   ***test.distribution*** Compares the distribution of the pilot data
+    to simulated covariates at each bootstrap iteration to ensure
+    similarity. Setting to <code>TRUE</code> may increase computation
+    time significantly. <code>defaults to FALSE</code>
+
 Example
 =======
 

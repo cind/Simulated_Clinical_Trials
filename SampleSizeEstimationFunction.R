@@ -14,11 +14,13 @@
 #' @param sig_level Type I error level (default is .05) (numeric)
 #' @param verbose Print progress during model fit (default is TRUE) (logical)
 #' @param balance.covariates Additional covariates to be used to treatment group balancing that are not in the model formula (character)
+#' @param test.distribution Test distribution of simulated covariates againt pilot covariates to ensure similarity (default is FALSE) (logical)
 #' @return Vector of covariates
 #'
-SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, time, 
-                             data, sample_sizes, nsim, sig_level = .05,
-                             verbose = TRUE, balance.covariates = NULL) {
+SampleSizeEstimation <- function(model, parameter,    pct.change, delta = NULL, time, 
+                                 data,  sample_sizes, nsim,       sig_level = .05,
+                                 verbose = TRUE,      balance.covariates = NULL, 
+                                 test.distribution = FALSE) {
   
   #raise errors
   
@@ -26,8 +28,12 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
     stop("only pct.change or delta can be specified")
   }
   
+  if(is.null(pct.change) & is.null(delta)) {
+    stop("pct.change or delta must be specified")
+  }
+  
   if(!is.null(pct.change) & pct.change > 1) {
-    stop("pct.change must be between 0-1")
+    stop("pct.change must be numeric between 0-1")
   }
   
   if(!is.data.frame(data)) {
@@ -71,13 +77,21 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
   init_props_list_placebo             <-  list()
   formula_model                       <-  as.character(formula(model))
   
+  # if test.distribution = TRUE this will change
+  dist.comp                           <-  FALSE
+  
   #get formula from model
   formula_model_join                  <-  paste(formula_model[2], formula_model[3], sep = "~")
  
   #get covariates from model formula
   model.covariates                    <-  GetCovariates(model, parameter)
+  
   #get subject ID column names
   rand.effect                         <-  names(ranef(model))
+  
+  #cross-sectional data
+  data.cs                             <-  data[!duplicated(data[rand.effect]), ]
+  
   if(!is.null(balance.covariates)) {
     model.covariates <- c(model.covariates, balance.covariates)
     model.covariates <- unique(model.covariates)
@@ -87,13 +101,20 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
   #get numeric column names
   cols.numeric               <- c(names(Filter(is.numeric, column.types)))
   cols.numeric               <- cols.numeric[cols.numeric != parameter]
+  
+  #check covariate data is positive
+  if(!all(data[ ,cols.numeric] >= 0)) {
+    stop("all covariate data must be positive")
+  }
+  
   cols.numeric.stratified    <- paste(cols.numeric, "_strat", sep = "")
   
   #get categorical column names
   cols.factor                <- c(names(Filter(is.factor, column.types)))
   cols.factor                <- cols.factor[cols.factor != rand.effect]
-  
   cols.balance               <- c(cols.numeric.stratified, cols.factor)
+  cols.compare               <- c(cols.numeric, cols.factor)
+  
   #add treatment term to model
   model.output               <- AddTreatmentTerm(model       = model,
                                                  parameter   = parameter,
@@ -113,15 +134,15 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
   .nsiminnerloop <- function(i, j) {
     
     #estimate multivariate distribution (cross sectional data)
-    sim.covariates      <- DefineMVND(data         = data, # cross sectional data is found within function
+    sim.covariates      <- DefineMVND(data         = data.cs, 
                                       n            = i * 2,
                                       rand.effect  = rand.effect,
                                       covariates   = model.covariates,
                                       cols.numeric = cols.numeric,
                                       cols.factor  = cols.factor)
     #extend simulated covariate data to be longitudinal based on time
-    sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,      rand.effect)
-    sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter, cols.numeric)
+    sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,        rand.effect)
+    sim.covariates.long    <- StratifyContinuous(sim.covariates.long, data.cs,     rand.effect, parameter, cols.numeric)
     
     #assign treatment groups
     treatment.out          <- RandomizeTreatment(sim.covariates.long, rand.effect, cols.balance)
@@ -133,24 +154,40 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
     props.test                   <-   PropTestIter(prop)
     levels.factors               <-   any(Map(function(x){nlevels(x)}, 
                                         data_sample_treated[ ,cols.balance]) < 2)
-    
+    if(test.distribution) {
+    dist.comp                    <-   CompareDistributions(sim.data     = sim.covariates,
+                                                           pilot.data   = data.cs,
+                                                           cols.compare = cols.compare,
+                                                           cols.factor  = cols.factor)
+    }
     #resample if balance fails
-    while(any(props.test <= .05) | levels.factors) {
-      sim.covariates      <- DefineMVND(data         = data, 
+    while(any(props.test <= .05) | levels.factors | dist.comp) {
+      sim.covariates      <- DefineMVND(data         = data.cs, 
                                         n            = i * 2,
                                         rand.effect  = rand.effect,
                                         covariates   = model.covariates,
                                         cols.numeric = cols.numeric,
                                         cols.factor  = cols.factor)
-      sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,      rand.effect)
-      sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter, cols.numeric)
+      #extend simulated covariate data to be longitudinal based on time
+      sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,        rand.effect)
+      sim.covariates.long    <- StratifyContinuous(sim.covariates.long, data.cs,     rand.effect, parameter, cols.numeric)
+      
+      #assign treatment groups
       treatment.out          <- RandomizeTreatment(sim.covariates.long, rand.effect, cols.balance)
+      
       prop                         <-   treatment.out[["props"]]
       data_sample_treated          <-   treatment.out[["data"]]
+      
+      #test balance
       props.test                   <-   PropTestIter(prop)
       levels.factors               <-   any(Map(function(x){nlevels(x)}, 
                                                 data_sample_treated[ ,cols.balance]) < 2)
-      
+      if(test.distribution) {
+      dist.comp                    <-   CompareDistributions(sim.data     = sim.covariates,
+                                                             pilot.data   = data.cs,
+                                                             cols.compare = cols.compare,
+                                                             cols.factor  = cols.factor)
+      }
     }
     
     #simulate outcomes based on new model with treatment term
@@ -193,8 +230,9 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
   
   #calculate proportion of successed (p.val <= sig_level) and 95% CI's
   conf.inter                   <- GetConfInt(pval.df, sig_level)
-  t2      <- Sys.time()
-  timerun <- difftime(t2, t1, units = "mins")
+  conf.inter$SampleSize        <- sample_sizes
+  t2                           <- Sys.time()
+  timerun                      <- difftime(t2, t1, units = "mins")
   
   return(list("Power_Per_Sample"          = conf.inter,
               "Run_Time"                  = timerun,

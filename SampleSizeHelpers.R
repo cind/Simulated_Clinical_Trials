@@ -169,7 +169,7 @@ CalcCutoff <- function(mean, sd, pi) {
 #' @param cols.factor Column names of categorical covariates (character)
 #' @return Simulated covariate data with defined by pilot data distribution
 #'
-DefineMVND <- function(data, rand.effect, n, covariates, cols.numeric, cols.factor) {
+DefineMVND <- function(data.cs, rand.effect, n, covariates, cols.numeric, cols.factor) {
   
   props.covs <- function(list) {
     list <- as.numeric(list)
@@ -183,8 +183,7 @@ DefineMVND <- function(data, rand.effect, n, covariates, cols.numeric, cols.fact
   }
   
   thresholds      <- c()
-  data            <- data[!duplicated(data[rand.effect]),]
-  data            <- data[ ,covariates]
+  data            <- data.cs[ ,covariates]
   columns.factor  <- cols.factor
   columns.numeric <- cols.numeric
   continuousdata  <- data.frame(matrix(nrow = nrow(data)))
@@ -245,7 +244,7 @@ DefineMVND <- function(data, rand.effect, n, covariates, cols.numeric, cols.fact
 #' @param stratcols Column names of continuous covariates to dichotomize (character)
 #' @return Longitduinal covariate data with additional dichotomized columns 
 #'
-StratifyContinuous <- function(longdata, rand.effect, parameter, stratcols) {
+StratifyContinuous <- function(longdata, data.cs, rand.effect, parameter, stratcols) {
   StratifyContVar  <- function(data, stratcols, rand.effect) {
     newdata <- data.frame(matrix(nrow = nrow(data)))
     for(i in stratcols) {
@@ -259,10 +258,9 @@ StratifyContinuous <- function(longdata, rand.effect, parameter, stratcols) {
     newdata[rand.effect] <- data[rand.effect]
     return(newdata)
   }
-  data       <- longdata[!duplicated(longdata[rand.effect]),]
-  bline      <- StratifyContVar(data, stratcols = stratcols, rand.effect = rand.effect)
+  bline      <- StratifyContVar(data.cs, stratcols = stratcols, rand.effect = rand.effect)
   longdata   <- merge(longdata, bline, by = rand.effect, all.x = TRUE)
-  return("longdata"= longdata)
+  return("longdata" = longdata)
 }
 
 #####################################################    
@@ -388,5 +386,46 @@ CalcProportionPos <- function(data, model.covariates) {
   data <- data[ ,model.covariates]
   prop <- Map(function(x) {table(x)}, data)
   return(prop)
-  
 }
+
+
+
+
+
+#' Compares distribution of simulated covariates to pilot data covariates
+#' 
+#' @param sim.data Simulated covariate data
+#' @param pilot.data Pilot covariate data
+#' @param cols.compare Covariates for comparing distribution
+#' @param cols.factor Covariates of type factor
+#' @return logical (TRUE/FALSE) (> 0.05 not significantly different returns FALSE)
+#'
+
+CompareDistributions <- function(sim.data, pilot.data, cols.compare, cols.factor) {
+  sim.data   <- sim.data[   ,cols.compare] 
+  pilot.data <- pilot.data[ ,cols.compare]
+  for(i in 1:length(cols.factor)) {
+    name.i             <- cols.factor[i]
+    levels.i           <- unique(sim.data[ ,name.i])
+    newfactorsim       <- mapvalues(sim.data[ ,name.i],   from = levels.i, to = c(1 : length(levels.i)))
+    newfactorpilot     <- mapvalues(pilot.data[ ,name.i], from = levels.i, to = c(1 : length(levels.i)))
+    sim.data[name.i]   <- newfactorsim
+    pilot.data[name.i] <- newfactorpilot
+  }
+  sim.data          <- sim.data %>% mutate_all(as.character)
+  sim.data          <- sim.data %>% mutate_all(as.numeric)
+  pilot.data        <- pilot.data %>% mutate_all(as.character)
+  pilot.data        <- pilot.data %>% mutate_all(as.numeric)
+  sim.data          <- sim.data[   ,cols.compare] 
+  pilot.data        <- pilot.data[ ,cols.compare]
+  dist.test         <- cramer::cramer.test(as.matrix(sim.data), as.matrix(pilot.data), replicates = 100)
+  p.val             <- dist.test$p.value
+  if(p.val > 0.05) {
+    return.logical  <- FALSE
+  } else {
+    return.logical  <- TRUE
+  }
+  return(return.logical)
+}
+
+
