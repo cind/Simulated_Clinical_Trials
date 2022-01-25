@@ -123,7 +123,7 @@ Population model (black) vs subject specific curves
 
 <br>
 
-<img src="https://imgur.com/a/j5DJuhD">
+![](https://raw.github.com/AdamLang96/Simulated_Clinical_Trial/main/readmecopy.jpg)
 
 Fixed Effects
 
