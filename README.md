@@ -123,7 +123,8 @@ Population model (black) vs subject specific curves
 
 <br>
 
-![](https://github.com/AdamLang96/Simulated_Clinical_Trials/blob/main/readmecopy.jpg)
+![Simulated Mixed Effects
+Model](https://i.postimg.cc/3wDFDPnB/readmecopy.png)\](<a href="https://postimg.cc/wtgmCbKy" class="uri">https://postimg.cc/wtgmCbKy</a>)
 
 Fixed Effects
 
