@@ -176,24 +176,25 @@ Running Model
 
 ``` r
 set.seed(123)
-ss.out <- SampleSizeEstimation(model        = simulated.model,
-                               parameter    = "Time",
-                               pct.change   = 0.3,
-                               time         = c(0, 1, 2, 3, 4),
-                               data         = def,
-                               nsim         = 500,
-                               sample_sizes = c(20, 60, 100),
-                               verbose      = FALSE)
+ss.out <- SampleSizeEstimation(model             = simulated.model,
+                               parameter         = "Time",
+                               pct.change        = 0.3,
+                               time              = c(0, 1, 2, 3, 4),
+                               data              = def,
+                               nsim              = 500,
+                               sample_sizes      = c(20, 60, 100),
+                               verbose           = FALSE,
+                               test.distribution = FALSE)
 ```
 
 ``` r
 ss.out$Power_Per_Sample
 ```
 
-    ##    mean    ci.low   ci.high
-    ## 1 0.344 0.3023909 0.3874665
-    ## 2 0.814 0.7770718 0.8471649
-    ## 3 0.968 0.9485532 0.9816008
+    ##    mean    ci.low   ci.high SampleSize
+    ## 1 0.382 0.3392193 0.4261847         20
+    ## 2 0.826 0.7898692 0.8582200         60
+    ## 3 0.968 0.9485532 0.9816008        100
 
 <br>
 
@@ -207,24 +208,25 @@ set at 0
 
 ``` r
 set.seed(123)
-ss.out <- SampleSizeEstimation(model        = simulated.model,
-                               parameter    = "Time",
-                               pct.change   = 0,
-                               time         = c(0, 1, 2, 3, 4),
-                               data         = def,
-                               nsim         = 500,
-                               sample_sizes = c(20, 60, 100),
-                               verbose      = FALSE)
+ss.out <- SampleSizeEstimation(model             = simulated.model,
+                               parameter         = "Time",
+                               pct.change        = 0,
+                               time              = c(0, 1, 2, 3, 4),
+                               data              = def,
+                               nsim              = 500,
+                               sample_sizes      = c(20, 60, 100),
+                               verbose           = FALSE,
+                               test.distribution = FALSE)
 ```
 
 ``` r
 ss.out$Power_Per_Sample
 ```
 
-    ##    mean     ci.low    ci.high
-    ## 1 0.062 0.04251106 0.08685260
-    ## 2 0.066 0.04586336 0.09144290
-    ## 3 0.046 0.02938018 0.06822543
+    ##    mean     ci.low    ci.high SampleSize
+    ## 1 0.052 0.03424570 0.07526637         20
+    ## 2 0.036 0.02147286 0.05630018         60
+    ## 3 0.050 0.03261518 0.07292762        100
 
 <br>
 
