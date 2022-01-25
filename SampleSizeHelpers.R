@@ -388,4 +388,5 @@ CalcProportionPos <- function(data, model.covariates) {
   data <- data[ ,model.covariates]
   prop <- Map(function(x) {table(x)}, data)
   return(prop)
+  
 }
