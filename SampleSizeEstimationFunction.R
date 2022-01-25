@@ -54,7 +54,7 @@ SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, tim
     stop("verbose must be of class logical")
   }
   
-  if(!is.character(balance.covariates)) {
+  if(!is.null(balance.covariates) & !is.character(balance.covariates)) {
     stop("balance.covariates must be of class character")
   }
   
