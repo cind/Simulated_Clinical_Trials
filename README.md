@@ -1,7 +1,6 @@
 Clinical Trial Simulation
 ================
 Adam Lang
-1/24/2022
 
 -   [Overview](#overview)
 -   [Installation](#installation)
@@ -53,38 +52,37 @@ SampleSizeEstimation Function
 -   ***model*** A fitted LME model (must be a lmer of package
     ***lme4***). This model is assumed to have a subject specific random
     intercept or a subject specific random intercept and slope specified
-    with parentheses. <code> Ex: “(1\|Subject)” “(1+Time\|Subject)”
-    </code>
+    with parentheses. <code>Ex: “(1\|Subject)”
+    “(1+Time\|Subject)”</code>
 
 -   ***parameter*** The name of the rate of change parameter of
-    interest. <code> Ex: “time”, “t”, “Months” </code>
+    interest. <code>Ex: “time”, “t”, “Months”</code>
 
 -   ***pct.change*** The percent change in the parameter of interest
-    <code> Ex: .05 (50% improvement) (Either pct.change or delta must be
-    specified, but not both, defaults to NULL) </code>
+    <code>Ex: .5 (50% improvement) (Either pct.change or delta must be
+    specified, but not both, defaults to NULL)</code>
 
 -   ***delta*** The change in the pilot estimate of the parameter of
-    interest. <code> (Either pct.change or delta must be specified, but
-    not both, defaults to NULL) </code>
+    interest. <code>(Either pct.change or delta must be specified, but
+    not both, defaults to NULL)</code>
 
--   ***time*** Numeric vector of timepoints. <code> Ex: c(0, .5, 1,
-    1.5, 2) </code>
+-   ***time*** Numeric vector of timepoints. <code>Ex: c(0, .5, 1, 1.5,
+    2)</code>
 
 -   ***data*** Pilot data used to fit pilot model
 
 -   ***sample\_sizes*** A numeric vector of sample sizes per arm to
-    calculate power. <code> Ex: c(100, 150, 200, 250) </code>
+    calculate power. <code>Ex: c(100, 150, 200, 250)</code>
 
--   ***nsim*** Number of iterations to run at each sample size <code>
-    (defaults to 500) </code>
+-   ***nsim*** Number of iterations to run at each sample size
+    <code>(defaults to 500)</code>
 
--   ***sig.level*** Type I Error rate <code> defaults to 0.05 </code>
+-   ***sig.level*** Type I Error rate <code>defaults to 0.05</code>
 
--   ***verbose*** Print model fit progress <code> defaults to TRUE
-    </code>
+-   ***verbose*** Print model fit progress <code>defaults to TRUE</code>
 
 -   ***balance.covariates*** Character vector of additional covariates
-    to balance while running simulation <code> defaults to NULL </code>
+    to balance while running simulation <code>defaults to NULL</code>
 
 Example
 =======
@@ -195,8 +193,8 @@ Type I Error
 
 Assessing Type I Error is important in bayesian inference as it may not
 be controlled at 5%. In order to estimate Type I error rates, a user can
-run the simulation with <code> pct.change </code> or <code> delta
-</code> set at 0
+run the simulation with <code>pct.change</code> or <code>delta</code>
+set at 0
 
 ``` r
 set.seed(123)
