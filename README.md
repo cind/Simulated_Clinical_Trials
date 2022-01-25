@@ -9,6 +9,7 @@ Adam Lang
     -   [Data](#data)
     -   [Running Model](#running-model)
 -   [Type I Error](#type-i-error)
+-   [Notes](#notes)
 
 Overview
 ========
@@ -216,3 +217,18 @@ ss.out$Power_Per_Sample
     ## 1 0.062 0.04251106 0.08685260
     ## 2 0.066 0.04586336 0.09144290
     ## 3 0.046 0.02938018 0.06822543
+
+<br>
+
+Notes
+=====
+
+In order to construct the simulated covariate population during the
+simulation process, a multivariate normal distribution is estimated from
+the pilot data using the Continuous Method [\[1\]](#1). This requires
+that all covariate values be positive.
+
+<a id="1">\[1\]</a> Tannenbaum, Stacey J et al. “Simulation of
+Correlated Continuous and Categorical Variables Using a Single
+Multivariate Distribution.” Journal of pharmacokinetics and
+pharmacodynamics 33.6 (2006): 773–794. Web.
