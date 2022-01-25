@@ -121,9 +121,10 @@ def$Cat2      <- factor(def$Cat2)
 
 Population model (black) vs subject specific curves
 
-![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
-
 <br>
+
+![Simulated Mixed Effect
+Model](/Users/adamgabriellang/Desktop/clinical_trial_sim/readmecopy.png)
 
 Fixed Effects
 
