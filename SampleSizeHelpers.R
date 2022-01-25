@@ -30,6 +30,21 @@ GetCovariates <- function(model, parameter) {
   fixed.effects.model <- gsub("\\s*\\([^\\)]+\\)","", model.formula[3])
   fixed.effects.model <- unlist(strsplit(fixed.effects.model, "\\+"))
   fixed.effects.model <- gsub(" ", "", fixed.effects.model, fixed = TRUE)
+  interaction_star    <- grep("\\*", fixed.effects.model)
+  interaction_colon   <- grep("\\:", fixed.effects.model)
+  if(length(interaction_star) > 0) {
+    int_terms <- unlist(strsplit(fixed.effects.model[grep("\\*", fixed.effects.model)], "\\*"))
+    fixed.effects.model <- append(fixed.effects.model, int_terms)
+    fixed.effects.model <- fixed.effects.model[fixed.effects.model  != fixed.effects.model[grep("\\*", fixed.effects.model)]]
+    fixed.effects.model <- unique(fixed.effects.model)
+    
+  }
+  if(length(interaction_colon) > 0) {
+    int_terms <- unlist(strsplit(fixed.effects.model[grep("\\:", fixed.effects.model)], "\\:"))
+    fixed.effects.model <- append(fixed.effects.model, int_terms)
+    fixed.effects.model <- fixed.effects.model[fixed.effects.model  != fixed.effects.model[grep("\\:", fixed.effects.model)]]
+    fixed.effects.model <- unique(fixed.effects.model)
+  }
   fixed.effects.model <- fixed.effects.model[fixed.effects.model  != parameter]
   return(fixed.effects.model)
 }
@@ -246,7 +261,7 @@ StratifyContinuous <- function(longdata, rand.effect, parameter, stratcols) {
   }
   data       <- longdata[!duplicated(longdata[rand.effect]),]
   bline      <- StratifyContVar(data, stratcols = stratcols, rand.effect = rand.effect)
-  longdata   <- merge(longdata, bline, by=rand.effect, all.x=TRUE)
+  longdata   <- merge(longdata, bline, by = rand.effect, all.x = TRUE)
   return("longdata"= longdata)
 }
 

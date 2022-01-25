@@ -16,12 +16,55 @@
 #' @param balance.covariates Additional covariates to be used to treatment group balancing that are not in the model formula (character)
 #' @return Vector of covariates
 #'
-SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, time, 
+SampleSizeEstimation <- function(model, parameter, pct.change, delta = NULL, time, 
                              data, sample_sizes, nsim, sig_level = .05,
                              verbose = TRUE, balance.covariates = NULL) {
+  
+  #raise errors
+  
+  if(!is.null(pct.change) & !is.null(delta)) {
+    stop("only pct.change or delta can be specified")
+  }
+  
+  if(!is.null(pct.change) & pct.change > 1) {
+    stop("pct.change must be between 0-1")
+  }
+  
+  if(!is.data.frame(data)) {
+    stop("data must be of class data.frame")
+  }
+  
+  if(!is.numeric(time)) {
+    stop("time must be of class numeric")
+  }
+ 
+  if(!is.numeric(sample_sizes)) {
+    stop("sample_sizes must be of class numeric")
+  }
+  
+  if(!is.numeric(nsim)) {
+    stop("nsim must be of class numeric")
+  }
+  
+  if(!is.numeric(sig_level)) {
+    stop("sig_level must be of class numeric")
+  }
+  
+  if(!is.logical(verbose)) {
+    stop("verbose must be of class logical")
+  }
+  
+  if(!is.character(balance.covariates)) {
+    stop("balance.covariates must be of class character")
+  }
+  
+  
+  
   t1 <- Sys.time()
+  if(verbose) {
   cat("Beginning simulation")
   cat("\n")
+  }
   init_iter_list                      <-  list()
   init_significance_list              <-  list()
   init_props_list_treatment           <-  list()
@@ -33,7 +76,6 @@ SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, tim
  
   #get covariates from model formula
   model.covariates                    <-  GetCovariates(model, parameter)
-  
   #get subject ID column names
   rand.effect                         <-  names(ranef(model))
   if(!is.null(balance.covariates)) {
@@ -52,14 +94,13 @@ SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, tim
   cols.factor                <- cols.factor[cols.factor != rand.effect]
   
   cols.balance               <- c(cols.numeric.stratified, cols.factor)
-  
   #add treatment term to model
   model.output               <- AddTreatmentTerm(model       = model,
                                                  parameter   = parameter,
                                                  pct.change  = pct.change,
                                                  data        = data,
                                                  rand.effect = rand.effect)
-  
+
   model                         <- model.output$model
   treatment_term                <- model.output$treatment_term
   iter_form_lm                  <- model.output$formula.model
@@ -69,7 +110,6 @@ SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, tim
   
   props <- list()  
   pvals <- list()
-  
   .nsiminnerloop <- function(i, j) {
     
     #estimate multivariate distribution (cross sectional data)
@@ -79,7 +119,6 @@ SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, tim
                                       covariates   = model.covariates,
                                       cols.numeric = cols.numeric,
                                       cols.factor  = cols.factor)
-    
     #extend simulated covariate data to be longitudinal based on time
     sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,      rand.effect)
     sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter, cols.numeric)
@@ -97,20 +136,21 @@ SampleSizeEstimatiom <- function(model, parameter, pct.change, delta = NULL, tim
     
     #resample if balance fails
     while(any(props.test <= .05) | levels.factors) {
-      sim.covariates      <- DefineMVND(  data         = data,
-                                          n            = i * 2,
-                                          rand.effect  = rand.effect,
-                                          covariates   = model.covariates,
-                                          cols.numeric = cols.numeric,
-                                          cols.factor  = cols.factor)
-      sim.covariates.long    <- ExtendLongitudinal(sim.covariates, parameter, time, rand.effect)
-      sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter)
+      sim.covariates      <- DefineMVND(data         = data, 
+                                        n            = i * 2,
+                                        rand.effect  = rand.effect,
+                                        covariates   = model.covariates,
+                                        cols.numeric = cols.numeric,
+                                        cols.factor  = cols.factor)
+      sim.covariates.long    <- ExtendLongitudinal(sim.covariates,      parameter,   time,      rand.effect)
+      sim.covariates.long    <- StratifyContinuous(sim.covariates.long, rand.effect, parameter, cols.numeric)
       treatment.out          <- RandomizeTreatment(sim.covariates.long, rand.effect, cols.balance)
       prop                         <-   treatment.out[["props"]]
       data_sample_treated          <-   treatment.out[["data"]]
       props.test                   <-   PropTestIter(prop)
       levels.factors               <-   any(Map(function(x){nlevels(x)}, 
                                                 data_sample_treated[ ,cols.balance]) < 2)
+      
     }
     
     #simulate outcomes based on new model with treatment term
