@@ -10,6 +10,7 @@ Adam Lang
     -   [Running Model](#running-model)
 -   [Type I Error](#type-i-error)
 -   [Notes](#notes)
+-   [Citations](#citations)
 
 Overview
 ========
@@ -139,7 +140,9 @@ simulated.model <- lme4::lmer(Outcome ~ Time + Num1 + Num2 + Cat1 + Cat2 + (1 + 
 
 [![plot-Model.png](https://i.postimg.cc/xdnZ30J5/plot-Model.png)](https://postimg.cc/219TzNxL)
 
-Population model (black) vs subject specific curves <br>
+Population model (black) vs subject specific curves
+
+<br>
 
 Fixed Effects
 
@@ -232,3 +235,65 @@ that all covariate values be positive.
 Correlated Continuous and Categorical Variables Using a Single
 Multivariate Distribution.” Journal of pharmacokinetics and
 pharmacodynamics 33.6 (2006): 773–794. Web.
+
+<br>
+
+Citations
+=========
+
+\[1\] Hadley Wickham (2011). The Split-Apply-Combine Strategy for Data
+Analysis. Journal of Statistical Software, 40(1), 1-29. URL
+<a href="http://www.jstatsoft.org/v40/i01/" class="uri">http://www.jstatsoft.org/v40/i01/</a>.
+
+\[2\] Hadley Wickham, Romain François, Lionel Henry and Kirill Müller
+(2021). dplyr: A Grammar of Data Manipulation. R package version 1.0.7.
+<a href="https://CRAN.R-project.org/package=dplyr" class="uri">https://CRAN.R-project.org/package=dplyr</a>
+
+\[3\] Venables, W. N. & Ripley, B. D. (2002) Modern Applied Statistics
+with S. Fourth Edition. Springer, New York. ISBN 0-387-95457-0
+
+\[4\] Douglas Bates, Martin Maechler, Ben Bolker, Steve Walker (2015).
+Fitting Linear Mixed-Effects Models Using lme4. Journal of Statistical
+Software, 67(1), 1-48.
+<a href="doi:10.18637/jss.v067.i01" class="uri">doi:10.18637/jss.v067.i01</a>.
+
+\[5\] Pinheiro J, Bates D, DebRoy S, Sarkar D, R Core Team (2021). nlme:
+Linear and Nonlinear Mixed Effects Models. R package version 3.1-153,
+&lt;URL:
+<a href="https://CRAN.R-project.org/package=nlme" class="uri">https://CRAN.R-project.org/package=nlme</a>&gt;.
+
+\[6\] Green P, MacLeod CJ (2016). “simr: an R package for power analysis
+of generalised linear mixed models by simulation.” Methods in Ecology
+and Evolution, 7(4), 493-498. doi: 10.1111/2041-210X.12504 (URL:
+<a href="https://doi.org/10.1111/2041-210X.12504" class="uri">https://doi.org/10.1111/2041-210X.12504</a>),
+&lt;URL:
+<a href="https://CRAN.R-project.org/package=simr" class="uri">https://CRAN.R-project.org/package=simr</a>&gt;.
+
+\[7\] Hadley Wickham (2019). stringr: Simple, Consistent Wrappers for
+Common String Operations. R package version 1.4.0.
+<a href="https://CRAN.R-project.org/package=stringr" class="uri">https://CRAN.R-project.org/package=stringr</a>
+
+\[8\] Henrik Bengtsson (2020). matrixStats: Functions that Apply to Rows
+and Columns of Matrices (and to Vectors). R package version 0.57.0.
+<a href="https://CRAN.R-project.org/package=matrixStats" class="uri">https://CRAN.R-project.org/package=matrixStats</a>
+
+\[9\] Kuznetsova A, Brockhoff PB, Christensen RHB (2017). “lmerTest
+Package: Tests in Linear Mixed Effects Models.” Journal of Statistical
+Software, 82(13), 1-26. doi: 10.18637/jss.v082.i13 (URL:
+<a href="https://doi.org/10.18637/jss.v082.i13" class="uri">https://doi.org/10.18637/jss.v082.i13</a>).
+
+\[10\] Venables, W. N. & Ripley, B. D. (2002) Modern Applied Statistics
+with S. Fourth Edition. Springer, New York. ISBN 0-387-95457-0
+
+\[11\] Ananda Mahto (2019). splitstackshape: Stack and Reshape Datasets
+After Splitting Concatenated Values. R package version 1.4.8.
+<a href="https://CRAN.R-project.org/package=splitstackshape" class="uri">https://CRAN.R-project.org/package=splitstackshape</a>
+
+\[12\] Carsten Franz (2019). cramer: Multivariate Nonparametric
+Cramer-Test for the Two-Sample-Problem. R package version 0.9-3.
+<a href="https://CRAN.R-project.org/package=cramer" class="uri">https://CRAN.R-project.org/package=cramer</a>
+
+\[13\] Tannenbaum, Stacey J et al. “Simulation of Correlated Continuous
+and Categorical Variables Using a Single Multivariate Distribution.”
+Journal of pharmacokinetics and pharmacodynamics 33.6 (2006): 773–794.
+Web.
