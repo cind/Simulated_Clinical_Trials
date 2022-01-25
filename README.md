@@ -19,7 +19,7 @@ Clinical Trial Simulation allows a user to estimate the statistical
 power of a pre-defined treatment effect at a set of sample sizes. This
 may be useful in informing recruitment of future clinical trials. Using
 a Linear-Mixed-Effects Model (LME) trained on pilot data, a user can
-determine the power of a treatment effect at a sample size via Monte
+estimate the power of a treatment effect at a sample size via Monte
 Carlo Simulation.
 
 <br>
