@@ -5,6 +5,8 @@ Adam Lang
 -   [Overview](#overview)
 -   [Installation](#installation)
 -   [SampleSizeEstimation Function](#samplesizeestimation-function)
+    -   [Arguments](#arguments)
+    -   [Returns](#returns)
 -   [Example](#example)
     -   [Data](#data)
     -   [Running Model](#running-model)
@@ -49,6 +51,9 @@ install.packages("cramer")
 SampleSizeEstimation Function
 =============================
 
+Arguments
+---------
+
 **SampleSizeEstimation** requires the following arguments:
 
 -   ***model*** A fitted LME model (must be a lmer of package
@@ -90,6 +95,20 @@ SampleSizeEstimation Function
     to simulated covariates at each bootstrap iteration to ensure
     similarity. Setting to <code>TRUE</code> may increase computation
     time significantly. <code>defaults to FALSE</code>
+
+Returns
+-------
+
+**SampleSizeEstimation** returns a list with the following objects:
+
+***Power\_Per\_Sample*** <code>data.frame</code> a data.frame with the
+power and CI’s at each sample size specified
+
+***Run\_Time*** <code>difftime</code> time duration of model fittting
+
+***pval.df*** <code>data.frame</code> a data.frame with dimension *nsim*
+X *sample\_sizes* of p values corresponding to specified treatment
+effect.
 
 Example
 =======
